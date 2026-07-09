@@ -6,7 +6,7 @@ export function useFavorites() {
   const [favorites, setFavorites] = useState<number[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  useEffect(() => {
+  const loadFavorites = () => {
     const stored = localStorage.getItem("bgg-favorites");
     if (stored) {
       try {
@@ -14,8 +14,21 @@ export function useFavorites() {
       } catch (e) {
         console.error("Failed to parse favorites from localStorage:", e);
       }
+    } else {
+      setFavorites([]);
     }
     setIsLoaded(true);
+  };
+
+  useEffect(() => {
+    loadFavorites();
+
+    const handleChanged = () => {
+      loadFavorites();
+    };
+
+    window.addEventListener("favorites-changed", handleChanged);
+    return () => window.removeEventListener("favorites-changed", handleChanged);
   }, []);
 
   const toggleFavorite = (bggId: number) => {
