@@ -51,9 +51,15 @@ async function downloadImage(url: string, bggId: number, isThumb = false): Promi
   }
 }
 
+interface BggCollectionItem {
+  bggId: number;
+  owned: boolean;
+  status: string;
+}
+
 // Fetch the user's collection from BGG XML API2
-async function fetchCollection(username: string): Promise<number[]> {
-  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}&own=1`;
+async function fetchCollection(username: string): Promise<BggCollectionItem[]> {
+  const url = `https://boardgamegeek.com/xmlapi2/collection?username=${encodeURIComponent(username)}`;
   console.log(`[Collection] Fetching collection for user: "${username}" from ${url}`);
 
   const maxRetries = 10;
@@ -103,16 +109,25 @@ async function fetchCollection(username: string): Promise<number[]> {
     }
 
     const items = toArray(parsed.items?.item);
-    console.log(`[Collection] Successfully retrieved ${items.length} owned games in collection.`);
+    console.log(`[Collection] Successfully retrieved ${items.length} items from BGG collection.`);
 
-    const bggIds: number[] = [];
+    const collectionItems: BggCollectionItem[] = [];
     for (const item of items) {
       const bggId = parseInt(item["@_objectid"], 10);
-      if (!isNaN(bggId)) {
-        bggIds.push(bggId);
+      if (isNaN(bggId)) continue;
+
+      const isOwned = item.status?.["@_own"] === "1";
+      const isWishlist = item.status?.["@_wishlist"] === "1";
+
+      if (isOwned || isWishlist) {
+        collectionItems.push({
+          bggId,
+          owned: isOwned,
+          status: isOwned ? "in_collection" : "wishlist",
+        });
       }
     }
-    return bggIds;
+    return collectionItems;
   }
 
   throw new Error(`[Collection] Max retries exceeded. BGG collection is still processing.`);
@@ -219,8 +234,13 @@ function getBestPlayerCount(item: any): string | null {
   return bestPlayerCounts.join(", ");
 }
 
+interface SyncOptions {
+  markAsOwned?: boolean;
+  statusMap?: Record<number, { owned: boolean; status: string }>;
+}
+
 // Process details and upsert into the DB
-async function syncGamesToDb(gamesDetails: any[], options?: { markAsOwned?: boolean }) {
+async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
   console.log(`[Sync] Upserting ${gamesDetails.length} games to SQLite...`);
   let successCount = 0;
 
@@ -286,7 +306,14 @@ async function syncGamesToDb(gamesDetails: any[], options?: { markAsOwned?: bool
           maxPlayTime: isNaN(maxPlayTime as any) ? null : maxPlayTime,
           minAge: isNaN(minAge as any) ? null : minAge,
           isExpansion,
-          ...(options?.markAsOwned ? { owned: true } : {}),
+          ...(options?.statusMap && options.statusMap[bggId]
+            ? {
+                owned: options.statusMap[bggId].owned,
+                status: options.statusMap[bggId].status,
+              }
+            : options?.markAsOwned
+            ? { owned: true }
+            : {}),
           categories: {
             set: [],
             connectOrCreate: categories.map((cat: string) => ({
@@ -333,7 +360,12 @@ async function syncGamesToDb(gamesDetails: any[], options?: { markAsOwned?: bool
           minPlayTime: isNaN(minPlayTime as any) ? null : minPlayTime,
           maxPlayTime: isNaN(maxPlayTime as any) ? null : maxPlayTime,
           minAge: isNaN(minAge as any) ? null : minAge,
-          owned: options?.markAsOwned ?? false,
+          owned: options?.statusMap && options.statusMap[bggId]
+            ? options.statusMap[bggId].owned
+            : (options?.markAsOwned ?? false),
+          status: options?.statusMap && options.statusMap[bggId]
+            ? options.statusMap[bggId].status
+            : "in_collection",
           isExpansion,
           categories: {
             connectOrCreate: categories.map((cat: string) => ({
@@ -392,14 +424,23 @@ export async function runSync(username: string): Promise<{ success: boolean; cou
       return { success: true, count, source: "mock" };
     }
 
-    const bggIds = await fetchCollection(username);
-    if (bggIds.length === 0) {
+    const collectionItems = await fetchCollection(username);
+    if (collectionItems.length === 0) {
       console.log(`[Sync] No games found for user: ${username}`);
       return { success: true, count: 0, source: "bgg" };
     }
 
+    const bggIds = collectionItems.map((item) => item.bggId);
+    const statusMap: Record<number, { owned: boolean; status: string }> = {};
+    for (const item of collectionItems) {
+      statusMap[item.bggId] = {
+        owned: item.owned,
+        status: item.status,
+      };
+    }
+
     const details = await fetchGameDetails(bggIds);
-    const count = await syncGamesToDb(details, { markAsOwned: true });
+    const count = await syncGamesToDb(details, { statusMap });
 
     // Clean up collection items that are no longer owned
     await prisma.game.updateMany({
@@ -409,6 +450,18 @@ export async function runSync(username: string): Promise<{ success: boolean; cou
       },
       data: {
         owned: false,
+      },
+    });
+
+    // Clean up collection items that are no longer wishlisted
+    const wishlistBggIds = collectionItems.filter((i) => i.status === "wishlist").map((i) => i.bggId);
+    await prisma.game.updateMany({
+      where: {
+        bggId: { notIn: wishlistBggIds },
+        status: "wishlist",
+      },
+      data: {
+        status: "in_collection", // reset to default
       },
     });
 
