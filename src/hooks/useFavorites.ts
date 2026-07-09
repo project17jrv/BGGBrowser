@@ -32,15 +32,27 @@ export function useFavorites() {
   }, []);
 
   const toggleFavorite = (bggId: number) => {
-    setFavorites((prev) => {
-      const next = prev.includes(bggId)
-        ? prev.filter((id) => id !== bggId)
-        : [...prev, bggId];
-      localStorage.setItem("bgg-favorites", JSON.stringify(next));
-      // Dispatch custom event to notify other components (e.g. catalog filter updates)
+    const stored = localStorage.getItem("bgg-favorites");
+    let currentFavs: number[] = [];
+    if (stored) {
+      try {
+        currentFavs = JSON.parse(stored);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    const next = currentFavs.includes(bggId)
+      ? currentFavs.filter((id) => id !== bggId)
+      : [...currentFavs, bggId];
+
+    localStorage.setItem("bgg-favorites", JSON.stringify(next));
+    setFavorites(next);
+
+    // Defer event dispatch to the next tick to prevent triggering
+    // state updates in other components during the current render phase.
+    setTimeout(() => {
       window.dispatchEvent(new Event("favorites-changed"));
-      return next;
-    });
+    }, 0);
   };
 
   const isFavorite = (bggId: number) => favorites.includes(bggId);
