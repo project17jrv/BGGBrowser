@@ -1,0 +1,20 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bgg-explorer
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist SQLite database on the host machine
+      - ./prisma:/app/prisma
+      # Persist downloaded board game images on the host machine
+      - ./public/images/games:/app/public/images/games
+    environment:
+      - DATABASE_URL=file:./dev.db
+      - BGG_USERNAME=boardgamegeek
+      # Provide your BGG API token here if you have one
+      - BGG_API_KEY=
+      - NEXT_PUBLIC_SITE_URL=http://localhost:3000

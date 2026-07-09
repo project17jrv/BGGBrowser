@@ -1,0 +1,537 @@
+[
+  {
+    "@_id": "224517",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Brass: Birmingham"
+      }
+    ],
+    "yearpublished": { "@_value": "2018" },
+    "description": "Brass: Birmingham is an economic strategy game sequel to Martin Wallace's 2007 masterpiece, Brass. Birmingham tells the story of competing entrepreneurs in Birmingham during the industrial revolution, between the years 1770-1870.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "4" },
+    "minplaytime": { "@_value": "60" },
+    "maxplaytime": { "@_value": "120" },
+    "minage": { "@_value": "14" },
+    "image": "https://images.unsplash.com/photo-1553481187-be93c21490a9?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1553481187-be93c21490a9?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Economic" },
+      { "@_type": "boardgamecategory", "@_value": "Industry / Manufacturing" },
+      { "@_type": "boardgamemechanic", "@_value": "Hand Management" },
+      { "@_type": "boardgamemechanic", "@_value": "Network and Route Building" },
+      { "@_type": "boardgamedesigner", "@_value": "Martin Wallace" },
+      { "@_type": "boardgamedesigner", "@_value": "Gavan Brown" },
+      { "@_type": "boardgamepublisher", "@_value": "Roxley" }
+    ],
+    "poll": [
+      {
+        "@_name": "suggested_numplayers",
+        "@_title": "User Suggested Number of Players",
+        "@_totalvotes": "319",
+        "results": [
+          {
+            "@_numplayers": "1",
+            "result": [
+              { "@_value": "Best", "@_numvotes": "0" },
+              { "@_value": "Recommended", "@_numvotes": "1" },
+              { "@_value": "Not Recommended", "@_numvotes": "10" }
+            ]
+          },
+          {
+            "@_numplayers": "2",
+            "result": [
+              { "@_value": "Best", "@_numvotes": "20" },
+              { "@_value": "Recommended", "@_numvotes": "40" },
+              { "@_value": "Not Recommended", "@_numvotes": "5" }
+            ]
+          },
+          {
+            "@_numplayers": "3",
+            "result": [
+              { "@_value": "Best", "@_numvotes": "100" },
+              { "@_value": "Recommended", "@_numvotes": "20" },
+              { "@_value": "Not Recommended", "@_numvotes": "1" }
+            ]
+          },
+          {
+            "@_numplayers": "4",
+            "result": [
+              { "@_value": "Best", "@_numvotes": "90" },
+              { "@_value": "Recommended", "@_numvotes": "30" },
+              { "@_value": "Not Recommended", "@_numvotes": "2" }
+            ]
+          }
+        ]
+      }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "46000" },
+        "average": { "@_value": "8.60" },
+        "averageweight": { "@_value": "3.89" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "1"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "161936",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Pandemic Legacy: Season 1"
+      }
+    ],
+    "yearpublished": { "@_value": "2015" },
+    "description": "Pandemic Legacy is a co-operative campaign game, with an overarching story-arc played through 12-24 sessions, depending on how well your group does. The game starts very similar to basic Pandemic, where your team of disease-fighting specialists races against the clock to branch out and find cures for four plagues.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "4" },
+    "minplaytime": { "@_value": "60" },
+    "maxplaytime": { "@_value": "60" },
+    "minage": { "@_value": "13" },
+    "image": "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Environmental" },
+      { "@_type": "boardgamecategory", "@_value": "Medical" },
+      { "@_type": "boardgamemechanic", "@_value": "Cooperative Game" },
+      { "@_type": "boardgamemechanic", "@_value": "Legacy Game" },
+      { "@_type": "boardgamedesigner", "@_value": "Rob Daviau" },
+      { "@_type": "boardgamedesigner", "@_value": "Matt Leacock" },
+      { "@_type": "boardgamepublisher", "@_value": "Z-Man Games" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "51000" },
+        "average": { "@_value": "8.53" },
+        "averageweight": { "@_value": "2.83" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "3"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "174430",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Gloomhaven"
+      }
+    ],
+    "yearpublished": { "@_value": "2017" },
+    "description": "Gloomhaven is a game of Euro-inspired tactical combat in a persistent world of shifting motives. Players will take on the role of a wandering adventurer with their own special set of skills and their own reasons for traveling to this dark corner of the world.",
+    "minplayers": { "@_value": "1" },
+    "maxplayers": { "@_value": "4" },
+    "minplaytime": { "@_value": "60" },
+    "maxplaytime": { "@_value": "120" },
+    "minage": { "@_value": "14" },
+    "image": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Adventure" },
+      { "@_type": "boardgamecategory", "@_value": "Fantasy" },
+      { "@_type": "boardgamemechanic", "@_value": "Campaign / Battle Card Driven" },
+      { "@_type": "boardgamemechanic", "@_value": "Grid Movement" },
+      { "@_type": "boardgamedesigner", "@_value": "Isaac Childres" },
+      { "@_type": "boardgamepublisher", "@_value": "Cephalofair Games" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "63000" },
+        "average": { "@_value": "8.61" },
+        "averageweight": { "@_value": "3.90" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "4"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "342942",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Ark Nova"
+      }
+    ],
+    "yearpublished": { "@_value": "2021" },
+    "description": "In Ark Nova, you will plan and design a modern, scientifically managed zoo. With the ultimate goal of owning the most successful zoological establishment, you will build enclosures, accommodate animals, and support conservation projects all over the world.",
+    "minplayers": { "@_value": "1" },
+    "maxplayers": { "@_value": "4" },
+    "minplaytime": { "@_value": "90" },
+    "maxplaytime": { "@_value": "150" },
+    "minage": { "@_value": "14" },
+    "image": "https://images.unsplash.com/photo-1534567153574-2b12153a87f0?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1534567153574-2b12153a87f0?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Animals" },
+      { "@_type": "boardgamecategory", "@_value": "Environmental" },
+      { "@_type": "boardgamemechanic", "@_value": "Hand Management" },
+      { "@_type": "boardgamemechanic", "@_value": "Tile Placement" },
+      { "@_type": "boardgamedesigner", "@_value": "Mathias Wigge" },
+      { "@_type": "boardgamepublisher", "@_value": "Feuerland Spiele" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "35000" },
+        "average": { "@_value": "8.54" },
+        "averageweight": { "@_value": "3.75" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "2"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "167791",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Terraforming Mars"
+      }
+    ],
+    "yearpublished": { "@_value": "2016" },
+    "description": "In the 2400s, mankind begins to terraform the planet Mars. Giant corporations, sponsored by the World Government on Earth, initiate huge projects to raise the temperature, the oxygen level, and the ocean coverage until the environment is habitable.",
+    "minplayers": { "@_value": "1" },
+    "maxplayers": { "@_value": "5" },
+    "minplaytime": { "@_value": "120" },
+    "maxplaytime": { "@_value": "120" },
+    "minage": { "@_value": "12" },
+    "image": "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1614728894747-a83421e2b9c9?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Economic" },
+      { "@_type": "boardgamecategory", "@_value": "Science Fiction" },
+      { "@_type": "boardgamemechanic", "@_value": "Drafting" },
+      { "@_type": "boardgamemechanic", "@_value": "Tile Placement" },
+      { "@_type": "boardgamedesigner", "@_value": "Jacob Fryxelius" },
+      { "@_type": "boardgamepublisher", "@_value": "FryxGames" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "98000" },
+        "average": { "@_value": "8.38" },
+        "averageweight": { "@_value": "3.26" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "6"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "266192",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Wingspan"
+      }
+    ],
+    "yearpublished": { "@_value": "2019" },
+    "description": "Wingspan is a competitive, medium-weight, card-driven, engine-building board game from Stonemaier Games. You are bird enthusiasts—researchers, bird watchers, ornithologists, and collectors—seeking to discover and attract the best birds to your network of wildlife preserves.",
+    "minplayers": { "@_value": "1" },
+    "maxplayers": { "@_value": "5" },
+    "minplaytime": { "@_value": "40" },
+    "maxplaytime": { "@_value": "70" },
+    "minage": { "@_value": "10" },
+    "image": "https://images.unsplash.com/photo-1444464666168-49d633b86797?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1444464666168-49d633b86797?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Animals" },
+      { "@_type": "boardgamecategory", "@_value": "Educational" },
+      { "@_type": "boardgamemechanic", "@_value": "Set Collection" },
+      { "@_type": "boardgamemechanic", "@_value": "Dice Rolling" },
+      { "@_type": "boardgamedesigner", "@_value": "Elizabeth Hargrave" },
+      { "@_type": "boardgamepublisher", "@_value": "Stonemaier Games" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "85000" },
+        "average": { "@_value": "8.11" },
+        "averageweight": { "@_value": "2.48" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "28"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "13",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Catan"
+      }
+    ],
+    "yearpublished": { "@_value": "1995" },
+    "description": "In CATAN, players try to be the dominant force on the island of Catan by building settlements, cities, and roads. On each turn dice are rolled to determine what resources the island produces. Players collect these resources to expand their empires.",
+    "minplayers": { "@_value": "3" },
+    "maxplayers": { "@_value": "4" },
+    "minplaytime": { "@_value": "60" },
+    "maxplaytime": { "@_value": "120" },
+    "minage": { "@_value": "10" },
+    "image": "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Economic" },
+      { "@_type": "boardgamecategory", "@_value": "Negotiation" },
+      { "@_type": "boardgamemechanic", "@_value": "Dice Rolling" },
+      { "@_type": "boardgamemechanic", "@_value": "Trading" },
+      { "@_type": "boardgamedesigner", "@_value": "Klaus Teuber" },
+      { "@_type": "boardgamepublisher", "@_value": "KOSMOS" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "120000" },
+        "average": { "@_value": "7.14" },
+        "averageweight": { "@_value": "2.31" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "472"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "9209",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Ticket to Ride"
+      }
+    ],
+    "yearpublished": { "@_value": "2004" },
+    "description": "Ticket to Ride is a cross-country train adventure in which players collect and play matching train cards to claim railway routes connecting cities throughout North America. The longer the routes, the more points they earn.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "5" },
+    "minplaytime": { "@_value": "30" },
+    "maxplaytime": { "@_value": "60" },
+    "minage": { "@_value": "8" },
+    "image": "https://images.unsplash.com/photo-1553481187-be93c21490a9?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1553481187-be93c21490a9?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Trains" },
+      { "@_type": "boardgamecategory", "@_value": "Travel" },
+      { "@_type": "boardgamemechanic", "@_value": "Card Drafting" },
+      { "@_type": "boardgamemechanic", "@_value": "Network and Route Building" },
+      { "@_type": "boardgamedesigner", "@_value": "Alan R. Moon" },
+      { "@_type": "boardgamepublisher", "@_value": "Days of Wonder" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "105000" },
+        "average": { "@_value": "7.41" },
+        "averageweight": { "@_value": "1.84" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "218"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "822",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Carcassonne"
+      }
+    ],
+    "yearpublished": { "@_value": "2000" },
+    "description": "Carcassonne is a tile-placement game in which the players draw and place a tile with a piece of southern French landscape on it. The tile might feature a city, a road, a cloister, grassland or some combination thereof, and it must be placed adjacent to tiles that have already been played.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "5" },
+    "minplaytime": { "@_value": "30" },
+    "maxplaytime": { "@_value": "45" },
+    "minage": { "@_value": "7" },
+    "image": "https://images.unsplash.com/photo-1544731612-de7f96afe55f?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1544731612-de7f96afe55f?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Medieval" },
+      { "@_type": "boardgamecategory", "@_value": "Territory Building" },
+      { "@_type": "boardgamemechanic", "@_value": "Tile Placement" },
+      { "@_type": "boardgamemechanic", "@_value": "Area Majority / Influence" },
+      { "@_type": "boardgamedesigner", "@_value": "Klaus-Jürgen Wrede" },
+      { "@_type": "boardgamepublisher", "@_value": "Hans im Glück" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "130000" },
+        "average": { "@_value": "7.42" },
+        "averageweight": { "@_value": "1.90" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "233"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "173346",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "7 Wonders Duel"
+      }
+    ],
+    "yearpublished": { "@_value": "2015" },
+    "description": "In 7 Wonders Duel, each player is leading a civilization and will construct Wonders and buildings. The game is played in 3 Ages, each Age using a deck of cards. The goal is to obtain military supremacy, scientific supremacy, or the most victory points.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "2" },
+    "minplaytime": { "@_value": "30" },
+    "maxplaytime": { "@_value": "30" },
+    "minage": { "@_value": "10" },
+    "image": "https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Ancient" },
+      { "@_type": "boardgamecategory", "@_value": "Card Game" },
+      { "@_type": "boardgamemechanic", "@_value": "Card Drafting" },
+      { "@_type": "boardgamemechanic", "@_value": "Set Collection" },
+      { "@_type": "boardgamedesigner", "@_value": "Antoine Bauza" },
+      { "@_type": "boardgamedesigner", "@_value": "Bruno Cathala" },
+      { "@_type": "boardgamepublisher", "@_value": "Repos Production" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "95000" },
+        "average": { "@_value": "8.11" },
+        "averageweight": { "@_value": "2.22" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "19"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "230791",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Azul"
+      }
+    ],
+    "yearpublished": { "@_value": "2017" },
+    "description": "Introduced by Moorish cultures, azulejos (originally white and blue ceramic tiles) were fully embraced by the Portuguese. In Azul, players take turns drafting colored tiles from suppliers to their player board. Later in the round, players score points based on how they've placed their tiles.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "4" },
+    "minplaytime": { "@_value": "30" },
+    "maxplaytime": { "@_value": "45" },
+    "minage": { "@_value": "8" },
+    "image": "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Abstract Strategy" },
+      { "@_type": "boardgamemechanic", "@_value": "Tile Placement" },
+      { "@_type": "boardgamemechanic", "@_value": "Set Collection" },
+      { "@_type": "boardgamedesigner", "@_value": "Michael Kiesling" },
+      { "@_type": "boardgamepublisher", "@_value": "Next Move Games" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "80000" },
+        "average": { "@_value": "7.78" },
+        "averageweight": { "@_value": "1.76" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "73"
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "@_id": "178900",
+    "name": [
+      {
+        "@_type": "primary",
+        "@_value": "Codenames"
+      }
+    ],
+    "yearpublished": { "@_value": "2015" },
+    "description": "Codenames is an easy party game of solving word puzzles. Two rival spymasters know the secret identities of 25 agents. Their teammates know the agents only by their CODENAMES. Spymasters give one-word clues that can point to multiple words on the board.",
+    "minplayers": { "@_value": "2" },
+    "maxplayers": { "@_value": "8" },
+    "minplaytime": { "@_value": "15" },
+    "maxplaytime": { "@_value": "15" },
+    "minage": { "@_value": "14" },
+    "image": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=400",
+    "thumbnail": "https://images.unsplash.com/photo-1551836022-d5d88e9218df?q=80&w=200",
+    "link": [
+      { "@_type": "boardgamecategory", "@_value": "Card Game" },
+      { "@_type": "boardgamecategory", "@_value": "Deduction" },
+      { "@_type": "boardgamemechanic", "@_value": "Team-Based Game" },
+      { "@_type": "boardgamemechanic", "@_value": "Word Association" },
+      { "@_type": "boardgamedesigner", "@_value": "Vlaada Chvátil" },
+      { "@_type": "boardgamepublisher", "@_value": "Czech Games Edition" }
+    ],
+    "statistics": {
+      "ratings": {
+        "usersrated": { "@_value": "125000" },
+        "average": { "@_value": "7.59" },
+        "averageweight": { "@_value": "1.28" },
+        "ranks": {
+          "rank": [
+            {
+              "@_name": "boardgame",
+              "@_value": "136"
+            }
+          ]
+        }
+      }
+    }
+  }
+]

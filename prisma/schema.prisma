@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id               String               @id @default(uuid())
+  bggId            Int                  @unique
+  name             String
+  yearPublished    Int?
+  imageUrl         String?
+  thumbnailUrl     String?
+  description      String?
+  rank             Int?
+  averageRating    Float?
+  usersRated       Int?
+  complexityWeight Float?
+  minPlayers       Int?
+  maxPlayers       Int?
+  bestPlayers      String?
+  minPlayTime      Int?
+  maxPlayTime      Int?
+  minAge           Int?
+  owned            Boolean              @default(false)
+  isExpansion      Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  // 1. Control Contable y Estado de Colección
+  status           String               @default("in_collection") // "in_collection" | "for_sale" | "sold" | "wishlist"
+  purchasePrice    Float?               // Precio de compra original
+  sellPrice        Float?               // Precio objetivo de venta
+  soldPrice        Float?               // Precio cobrado al venderlo
+  personalRating   Float?               // Valoración personal (1-10)
+  physicalState    String?              // "sealed" | "like_new" | "good" | "defects"
+  retentionStatus  String?              // "untouchable" | "stable" | "expendable"
+  played           Boolean              @default(false) // Si se ha estrenado / jugado
+  notes            String?              // Notas personales o de desperfectos
+  spanishName      String?              // Nombre traducido al español
+
+  // 2. Multimedia Manual (Tutoriales & PDF)
+  youtubeUrl       String?              // URL de videotutorial fijado manualmente
+  pdfUrl           String?              // URL de manual de reglas PDF (BGG o externo)
+
+  // 3. Cachés Denormalizadas (Guardadas como JSON String para máxima velocidad)
+  ludonautaCache   String?              // { lastUpdated: DateTime, slug: string, offers: [{ storeName, price, link, stock }] }
+  sleevesCache     String?              // { lastUpdated: DateTime, sizes: [{ name, count, width, height, packsNeeded }] }
+  wallapopCache    String?              // { lastUpdated: DateTime, averagePrice: number, listings: [{ id, title, price, webLink }] }
+  musicPlaylist    String?              // { lastUpdated: DateTime, songs: [{ eid: string, title: string }] }
+  excludedWallapopIds String?           // IDs de Wallapop ignorados (guardados separados por comas)
+
+  // --- RELACIONES ---
+  categories       Category[]
+  mechanics        Mechanic[]
+  designers        Designer[]
+  publishers       Publisher[]
+  linkedWallapop   LinkedWallapopItem[] // Anuncios de Wallapop reales vinculados manualmente
+
+  @@index([name])
+  @@index([rank])
+  @@index([averageRating])
+  @@index([yearPublished])
+  @@index([complexityWeight])
+  @@index([minPlayers])
+  @@index([maxPlayers])
+  @@index([owned])
+  @@index([status])
+  @@index([isExpansion])
+}
+
+model Category {
+  id    String @id @default(uuid())
+  name  String @unique
+  games Game[]
+}
+
+model Mechanic {
+  id    String @id @default(uuid())
+  name  String @unique
+  games Game[]
+}
+
+model Designer {
+  id    String @id @default(uuid())
+  name  String @unique
+  games Game[]
+}
+
+model Publisher {
+  id    String @id @default(uuid())
+  name  String @unique
+  games Game[]
+}
+
+// NUEVO MODELO: Para asociar manualmente anuncios de Wallapop concretos sin usar extensión
+model LinkedWallapopItem {
+  id        String   @id @default(uuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  title     String   // Título del anuncio
+  price     Float    // Precio del anuncio
+  webLink   String   // Enlace directo al anuncio en Wallapop
+  imageUrl  String?  // Imagen miniatura opcional
+  location  String?  // Ubicación o comentarios del anuncio
+  dateAdded DateTime @default(now())
+
+  @@index([gameId])
+}
+
+// NUEVO MODELO: Diario de Partidas
+model PlaySession {
+  id              String              @id @default(uuid())
+  bggId           Int?                // Asociado a un juego (opcional por si se juega a algo fuera de la base de datos)
+  gameName        String              // Nombre del juego
+  gameThumbnail   String?
+  playedAt        DateTime
+  location        String?
+  durationMinutes Int?
+  mode            String              // "competitive" | "cooperative" | "solo" | "team"
+  result          String?             // "win" | "loss" | "draw" | "unfinished"
+  notes           String?
+  rating          Float?              // Puntuación de la sesión (1-10)
+  bggPlayId       Int?                // ID original de BGG si se importa
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  players         PlaySessionPlayer[]
+}
+
+// NUEVO MODELO: Jugadores en las partidas
+model PlaySessionPlayer {
+  id            String      @id @default(uuid())
+  playSessionId String
+  playSession   PlaySession @relation(fields: [playSessionId], references: [id], onDelete: Cascade)
+  name          String      // Nombre del jugador
+  score         Int?        // Puntuación obtenida
+  isWinner      Boolean     @default(false)
+  faction       String?     // Facción / Rol usado (ej. "Marquesado")
+  role          String?
+
+  @@index([playSessionId])
+  @@index([name])
+}

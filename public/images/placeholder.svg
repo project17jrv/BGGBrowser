@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="100%" height="100%">
+  <rect width="400" height="300" fill="#0f172a"/>
+  <!-- Isometric board game box drawing -->
+  <path d="M200 90 L270 125 L200 160 L130 125 Z" fill="#4f46e5" opacity="0.95"/>
+  <path d="M200 160 L270 125 L270 195 L200 230 Z" fill="#3730a3" opacity="0.95"/>
+  <path d="M200 160 L130 125 L130 195 L200 230 Z" fill="#312e81" opacity="0.95"/>
+  <!-- Decorative dice -->
+  <rect x="290" y="210" width="20" height="20" rx="4" fill="#6366f1" transform="rotate(15 300 220)"/>
+  <circle cx="295" cy="215" r="1.5" fill="white" transform="rotate(15 300 220)"/>
+  <circle cx="305" cy="225" r="1.5" fill="white" transform="rotate(15 300 220)"/>
+  
+  <text x="200" y="265" font-family="system-ui, sans-serif" font-size="12" fill="#64748b" text-anchor="middle" font-weight="600" letter-spacing="1">
+    IMAGEN NO DISPONIBLE
+  </text>
+</svg>
