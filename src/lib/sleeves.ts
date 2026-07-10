@@ -139,9 +139,21 @@ export async function getGameSleeves(gameId: string, forceRefresh = false): Prom
       });
 
       if (res.status === 200) {
+        interface BggCardType {
+          width: string;
+          height: string;
+          quantity: string;
+          name?: string;
+        }
+        interface BggCardSet {
+          addon: boolean;
+          name?: string;
+          cardTypes?: BggCardType[];
+        }
+
         const data = await res.json();
-        const cardSets = data.cardSets || [];
-        const nonAddons = cardSets.filter((cs: any) => !cs.addon);
+        const cardSets: BggCardSet[] = data.cardSets || [];
+        const nonAddons = cardSets.filter((cs: BggCardSet) => !cs.addon);
         const targetSets = nonAddons.length > 0 ? nonAddons : cardSets;
 
         const sizeMap: Record<string, { width: number; height: number; count: number; name: string }> = {};
