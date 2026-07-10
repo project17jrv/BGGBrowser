@@ -20,7 +20,7 @@ async function run() {
   const startTime = Date.now();
 
   try {
-    const result = await runSyncTopBgg(250);
+    const result = await runSyncTopBgg(1000);
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`=== Sync completed in ${duration}s! ===`);
     console.log(`Status: ${result.success ? "Success" : "Failed"}`);

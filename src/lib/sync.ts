@@ -502,7 +502,7 @@ export async function runSync(username: string): Promise<{ success: boolean; cou
 }
 
 // Synchronize general BGG ranking games (top games)
-export async function runSyncTopBgg(limit = 250): Promise<{ success: boolean; count: number }> {
+export async function runSyncTopBgg(limit = 1000): Promise<{ success: boolean; count: number }> {
   try {
     console.log(`[Sync Top BGG] Starting sync of top ${limit} BGG games...`);
 

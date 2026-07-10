@@ -8,9 +8,9 @@ export async function POST(req: NextRequest) {
     const username = searchParams.get("username") || process.env.BGG_USERNAME || "boardgamegeek";
 
     if (type === "ranking") {
-      console.log(`[API Admin Sync] Triggering background sync for BGG Ranking Top 250`);
+      console.log(`[API Admin Sync] Triggering background sync for BGG Ranking Top 1000`);
 
-      runSyncTopBgg(250)
+      runSyncTopBgg(1000)
         .then((result) => {
           console.log(
             `[API Admin Sync] Background ranking sync finished successfully. Games synced: ${result.count}`
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           status: "started",
-          message: `Synchronization started in the background for BGG Ranking Top 250. Check server logs for details.`,
+          message: `Synchronization started in the background for BGG Ranking Top 1000. Check server logs for details.`,
         },
         { status: 202 }
       );
