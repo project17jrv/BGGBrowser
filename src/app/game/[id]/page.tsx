@@ -14,6 +14,7 @@ import MusicWidget from "@/components/MusicWidget";
 import GameTabs from "@/components/GameTabs";
 import TutorialForm from "@/components/TutorialForm";
 import TranslateDescriptionButton from "@/components/TranslateDescriptionButton";
+import ManualViewer from "@/components/ManualViewer";
 import { Video } from "lucide-react";
 
 function getYouTubeId(url: string | null): string | null {
@@ -360,27 +361,7 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                   <TutorialForm bggId={game.bggId} gameName={game.spanishName || game.name} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
 
                   {/* Rules PDF manual (if exists) */}
-                  {game.pdfUrl && (
-                    <div className="rounded-2xl border bg-card p-5 shadow-premium flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-red-500/10 p-2.5 text-red-500 shrink-0">
-                          <FileText size={18} />
-                        </div>
-                        <div className="flex flex-col">
-                          <h4 className="font-heading text-xs font-bold text-foreground">Reglas Oficiales en PDF</h4>
-                          <p className="text-[10px] text-muted-foreground">Instrucciones de juego listas para leer o descargar.</p>
-                        </div>
-                      </div>
-                      <a
-                        href={game.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs px-4 py-2.5 shadow-sm transition-all"
-                      >
-                        Ver Reglamento
-                      </a>
-                    </div>
-                  )}
+                  {game.pdfUrl && <ManualViewer pdfUrl={game.pdfUrl} />}
                 </div>
               }
             />
