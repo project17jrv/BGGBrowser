@@ -37,9 +37,9 @@ export default function GameTabs({ ludotecaContent, preciosContent, aprendeConte
   ];
 
   return (
-    <div className="flex flex-col gap-6 w-full mt-6">
+    <div className="flex flex-col gap-5 w-full">
       {/* Tabs Navigation */}
-      <div className="border-b flex flex-wrap gap-1 pb-0 bg-muted/20 p-1.5 rounded-xl">
+      <div className="border-b flex flex-wrap gap-1 pb-0">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -47,13 +47,13 @@ export default function GameTabs({ ludotecaContent, preciosContent, aprendeConte
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-xs md:text-sm font-bold border-b-2 rounded-lg transition-all duration-200 focus:outline-none ${
+              className={`flex items-center gap-1.5 px-3 py-2 text-[11px] md:text-xs font-bold border-b-2 transition-all duration-200 focus:outline-none -mb-[2px] rounded-t-lg ${
                 isActive
-                  ? `${tab.activeBg} shadow-sm`
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  ? `${tab.activeBg} border-current`
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
               }`}
             >
-              <Icon size={15} className={isActive ? "" : tab.color} />
+              <Icon size={13} className={isActive ? "" : tab.color} />
               <span>{tab.label}</span>
             </button>
           );
