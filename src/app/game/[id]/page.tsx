@@ -60,30 +60,30 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
           <DetailFavoriteButton bggId={game.bggId} />
         </div>
 
-        {/* Game Detail Panel Layout */}
-        <div className="flex flex-col gap-6">
+        {/* Two-Column Sidebar Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
-          {/* UPPER PANEL: Core Information */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 rounded-2xl border bg-card p-6 md:p-8 shadow-premium">
-            
-            {/* Col 1: Portada y Música */}
-            <div className="flex flex-col gap-6 md:col-span-1">
-              <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-muted border shadow-sm group">
-                <Image
-                  src={game.imageUrl || "/images/placeholder.svg"}
-                  alt={game.name}
-                  fill
-                  priority
-                  sizes="(max-width: 768px) 100vw, 25vw"
-                  className="object-cover transition-transform duration-500 group-hover:scale-102"
-                />
-              </div>
-              <MusicWidget gameId={game.id} />
+          {/* LEFT SIDEBAR COLUMN: Portada, Música, Fundas */}
+          <div className="flex flex-col gap-6 lg:col-span-1">
+            <div className="relative aspect-[3/4] w-full rounded-2xl overflow-hidden bg-muted border shadow-sm group">
+              <Image
+                src={game.imageUrl || "/images/placeholder.svg"}
+                alt={game.name}
+                fill
+                priority
+                sizes="(max-width: 768px) 100vw, 25vw"
+                className="object-cover transition-transform duration-500 group-hover:scale-102"
+              />
             </div>
+            <MusicWidget gameId={game.id} />
+            <SleevesWidget gameId={game.id} />
+          </div>
 
-            {/* Col 2 & 3: Título, Detalles BGG y Etiquetas */}
-            <div className="flex flex-col gap-6 md:col-span-2">
-              
+          {/* RIGHT CONTENT COLUMN: Info & Tabs */}
+          <div className="flex flex-col gap-6 lg:col-span-3">
+            
+            {/* Core Game Info Card */}
+            <div className="flex flex-col gap-6 rounded-2xl border bg-card p-6 md:p-8 shadow-premium">
               {/* Title & Year */}
               <div>
                 <div className="flex flex-wrap items-center gap-3 mb-1.5">
@@ -291,118 +291,115 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
               )}
             </div>
 
-            {/* Col 4: Fundas */}
-            <div className="flex flex-col gap-6 md:col-span-1">
-              <SleevesWidget gameId={game.id} />
+            {/* LOWER PANEL: Full Width Tabbed View */}
+            <div className="rounded-2xl border bg-card p-6 md:p-8 shadow-premium">
+              <GameTabs
+                ludotecaContent={
+                  <div className="w-full">
+                    <FinancialForm game={{
+                      bggId: game.bggId,
+                      status: game.status,
+                      purchasePrice: game.purchasePrice,
+                      sellPrice: game.sellPrice,
+                      soldPrice: game.soldPrice,
+                      personalRating: game.personalRating,
+                      physicalState: game.physicalState,
+                      retentionStatus: game.retentionStatus,
+                      played: game.played,
+                      notes: game.notes,
+                      spanishName: game.spanishName,
+                      youtubeUrl: game.youtubeUrl,
+                      pdfUrl: game.pdfUrl,
+                    }} />
+                  </div>
+                }
+                preciosContent={
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+                    <PricesWidget gameId={game.id} />
+                    <WallapopWidget
+                      gameId={game.id}
+                      initialItems={game.linkedWallapop.map(item => ({
+                        id: item.id,
+                        title: item.title,
+                        price: item.price,
+                        webLink: item.webLink,
+                        location: item.location
+                      }))}
+                      initialExcluded={game.excludedWallapopIds || ""}
+                    />
+                  </div>
+                }
+                aprendeContent={
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
+                    <ReviewVideosWidget gameId={game.id} />
+                    
+                    <div className="flex flex-col gap-6">
+                      {/* Rules PDF manual (if exists) */}
+                      {game.pdfUrl && (
+                        <div className="rounded-2xl border bg-card p-5 shadow-premium flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-xl bg-red-500/10 p-2.5 text-red-500 shrink-0">
+                              <FileText size={18} />
+                            </div>
+                            <div className="flex flex-col">
+                              <h4 className="font-heading text-xs font-bold text-foreground">Reglas Oficiales en PDF</h4>
+                              <p className="text-[10px] text-muted-foreground">Instrucciones de juego listas para leer o descargar.</p>
+                            </div>
+                          </div>
+                          <a
+                            href={game.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs px-4 py-2.5 shadow-sm transition-all"
+                          >
+                            Ver Reglamento
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Reseñas (Misut Meeple review if exists) */}
+                      {review ? (
+                        <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col gap-4">
+                          <div className="flex items-center justify-between border-b pb-3">
+                            <h4 className="font-heading text-xs font-bold text-foreground">Reseña Misut Meeple</h4>
+                            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                              Sello {review.rating}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-4">
+                            <img
+                              src={`/misut-meeple/sello-${review.rating}.png`}
+                              alt={`Sello ${review.rating}`}
+                              className="h-16 w-16 object-contain shrink-0 bg-muted/10 p-1.5 rounded-xl border"
+                            />
+                            <div className="flex flex-col gap-2">
+                              <p className="text-xs text-muted-foreground leading-normal">
+                                Esta copia dispone de una reseña analítica redactada por el blog de referencia **Misut Meeple**, habiendo obtenido la calificación de **Sello {review.rating}**.
+                              </p>
+                              <a
+                                href={review.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline self-start mt-1"
+                              >
+                                <span>Leer Reseña Completa</span>
+                                <span>&rarr;</span>
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl border border-dashed bg-muted/5 p-5 text-center text-xs text-muted-foreground">
+                          No hay reseña escrita de Misut Meeple disponible para este juego.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                }
+              />
             </div>
 
           </div>
-
-          {/* LOWER PANEL: Full Width Tabbed View */}
-          <GameTabs
-            ludotecaContent={
-              <div className="w-full">
-                <FinancialForm game={{
-                  bggId: game.bggId,
-                  status: game.status,
-                  purchasePrice: game.purchasePrice,
-                  sellPrice: game.sellPrice,
-                  soldPrice: game.soldPrice,
-                  personalRating: game.personalRating,
-                  physicalState: game.physicalState,
-                  retentionStatus: game.retentionStatus,
-                  played: game.played,
-                  notes: game.notes,
-                  spanishName: game.spanishName,
-                  youtubeUrl: game.youtubeUrl,
-                  pdfUrl: game.pdfUrl,
-                }} />
-              </div>
-            }
-            preciosContent={
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-                <PricesWidget gameId={game.id} />
-                <WallapopWidget
-                  gameId={game.id}
-                  initialItems={game.linkedWallapop.map(item => ({
-                    id: item.id,
-                    title: item.title,
-                    price: item.price,
-                    webLink: item.webLink,
-                    location: item.location
-                  }))}
-                  initialExcluded={game.excludedWallapopIds || ""}
-                />
-              </div>
-            }
-            aprendeContent={
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-                <ReviewVideosWidget gameId={game.id} />
-                
-                <div className="flex flex-col gap-6">
-                  {/* Rules PDF manual (if exists) */}
-                  {game.pdfUrl && (
-                    <div className="rounded-2xl border bg-card p-5 shadow-premium flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-xl bg-red-500/10 p-2.5 text-red-500 shrink-0">
-                          <FileText size={18} />
-                        </div>
-                        <div className="flex flex-col">
-                          <h4 className="font-heading text-xs font-bold text-foreground">Reglas Oficiales en PDF</h4>
-                          <p className="text-[10px] text-muted-foreground">Instrucciones de juego listas para leer o descargar.</p>
-                        </div>
-                      </div>
-                      <a
-                        href={game.pdfUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-xs px-4 py-2.5 shadow-sm transition-all"
-                      >
-                        Ver Reglamento
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Reseñas (Misut Meeple review if exists) */}
-                  {review ? (
-                    <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col gap-4">
-                      <div className="flex items-center justify-between border-b pb-3">
-                        <h4 className="font-heading text-xs font-bold text-foreground">Reseña Misut Meeple</h4>
-                        <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                          Sello {review.rating}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-4">
-                        <img
-                          src={`/misut-meeple/sello-${review.rating}.png`}
-                          alt={`Sello ${review.rating}`}
-                          className="h-16 w-16 object-contain shrink-0 bg-muted/10 p-1.5 rounded-xl border"
-                        />
-                        <div className="flex flex-col gap-2">
-                          <p className="text-xs text-muted-foreground leading-normal">
-                            Esta copia dispone de una reseña analítica redactada por el blog de referencia **Misut Meeple**, habiendo obtenido la calificación de **Sello {review.rating}**.
-                          </p>
-                          <a
-                            href={review.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline self-start mt-1"
-                          >
-                            <span>Leer Reseña Completa</span>
-                            <span>&rarr;</span>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-dashed bg-muted/5 p-5 text-center text-xs text-muted-foreground">
-                      No hay reseña escrita de Misut Meeple disponible para este juego.
-                    </div>
-                  )}
-                </div>
-              </div>
-            }
-          />
 
         </div>
 
