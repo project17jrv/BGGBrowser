@@ -1246,7 +1246,7 @@ export async function autoImportWallapop(gameId: string) {
 }
 
 /**
- * Searches Wallapop items using Brave, Yahoo (pages 1 & 2), DuckDuckGo, and Bing in parallel.
+ * Searches Wallapop items using Brave, Yahoo (multiple pages and query variations), DuckDuckGo, and Bing in parallel.
  * Collects up to 60 unique Spanish item URLs and returns them.
  */
 export async function searchWallapopUrls(query: string) {
@@ -1293,35 +1293,35 @@ export async function searchWallapopUrls(query: string) {
     const qBase = query;
     const qJuego = hasJuego ? query : `${query} juego`;
     const qJuegoMesa = (hasJuego && hasMesa) ? query : `${query} juego de mesa`;
+    const qMesaJuego = (hasJuego && hasMesa) ? query : `juego de mesa ${query}`;
 
-    // We build the search urls
+    // Search targets
     const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}`;
-    const yahooUrl1 = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}`;
-    const yahooUrl2 = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=11`;
     const ddgUrl = `https://html.duckduckgo.com/html/?q=site:es.wallapop.com/item+${encodeURIComponent(qBase)}`;
     const bingUrl = `https://www.bing.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}`;
 
-    // Execute searches in parallel
-    await Promise.all([
+    // Paginating Yahoo is very stable and doesn't rate limit easily.
+    const yahooUrls = [
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}&b=1`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}&b=11`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}&b=21`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=1`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=11`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=21`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qBase)}&b=1`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qBase)}&b=11`,
+      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qMesaJuego)}&b=1`
+    ];
+
+    // Execute engine searches in parallel
+    const enginePromises = [
       fetchWithUA(braveUrl, {}, 0).then(async res => {
         if (res.ok) {
           const h = await res.text();
           extractBraveUrls(h).forEach(u => allFoundUrls.add(u));
         }
       }).catch(() => {}),
-      fetchWithUA(yahooUrl1, {}, 1).then(async res => {
-        if (res.ok) {
-          const h = await res.text();
-          extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
-        }
-      }).catch(() => {}),
-      fetchWithUA(yahooUrl2, {}, 2).then(async res => {
-        if (res.ok) {
-          const h = await res.text();
-          extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
-        }
-      }).catch(() => {}),
-      fetchWithUA(ddgUrl, {}, 3).then(async res => {
+      fetchWithUA(ddgUrl, {}, 1).then(async res => {
         if (res.ok) {
           const h = await res.text();
           if (!h.includes("captcha") && !h.includes("robot")) {
@@ -1329,7 +1329,7 @@ export async function searchWallapopUrls(query: string) {
           }
         }
       }).catch(() => {}),
-      fetchWithUA(bingUrl, {}, 0).then(async res => {
+      fetchWithUA(bingUrl, {}, 2).then(async res => {
         if (res.ok) {
           const h = await res.text();
           if (!h.includes("captcha")) {
@@ -1338,7 +1338,25 @@ export async function searchWallapopUrls(query: string) {
           }
         }
       }).catch(() => {})
-    ]);
+    ];
+
+    // Fetch Yahoo sequentially with small delays to ensure 100% success rate
+    const fetchYahooSequentially = async () => {
+      for (let i = 0; i < yahooUrls.length; i++) {
+        try {
+          const res = await fetchWithUA(yahooUrls[i], {}, i);
+          if (res.ok) {
+            const h = await res.text();
+            extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
+          }
+        } catch {}
+        if (i < yahooUrls.length - 1) {
+          await new Promise(r => setTimeout(r, 80)); // 80ms is enough to avoid concurrency detection
+        }
+      }
+    };
+
+    await Promise.all([...enginePromises, fetchYahooSequentially()]);
 
     const urls = [...allFoundUrls].slice(0, 60); // Collect up to 60 URLs
     return { success: true, urls };
@@ -1350,7 +1368,7 @@ export async function searchWallapopUrls(query: string) {
 
 /**
  * Fetches details for a chunk of Wallapop URLs.
- * Limits execution to keep it extremely fast and handles errors gracefully.
+ * Limits execution concurrency to keep it extremely fast and bypass rate limiting.
  */
 export async function fetchWallapopDetailsForUrls(urls: string[]) {
   try {
@@ -1360,73 +1378,91 @@ export async function fetchWallapopDetailsForUrls(urls: string[]) {
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
     ];
 
-    const items = await Promise.all(
-      urls.map(async (url) => {
-        try {
-          const res = await fetch(url, {
-            headers: {
-              "User-Agent": USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
-              "Accept-Language": "es-ES,es;q=0.9",
+    const items: Array<{
+      title: string;
+      price: number;
+      location: string;
+      imageUrl: string;
+      webLink: string;
+    } | null> = [];
+    const BATCH_SIZE = 3;
+    const DELAY_MS = 150;
+
+    for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+      const batch = urls.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (url) => {
+          try {
+            const res = await fetch(url, {
+              headers: {
+                "User-Agent": USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
+                "Accept-Language": "es-ES,es;q=0.9",
+              }
+            });
+            if (!res.ok) return null;
+            const html = await res.text();
+
+            // Title
+            let title = "";
+            const titleMatch = html.match(/<meta[^>]*?(?:property|name)="og:title"[^>]*?content="([^"]+)"/i) ||
+                               html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:title"/i) ||
+                               html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i) ||
+                               html.match(/<title>([^<]+)<\/title>/i);
+            if (titleMatch && titleMatch[1]) {
+              title = titleMatch[1].split(" de segunda mano por")[0].trim();
+              title = title.replace(/&amp;/g, "&").replace(/&quot;/g, '"');
             }
-          });
-          if (!res.ok) return null;
-          const html = await res.text();
 
-          // Title
-          let title = "";
-          const titleMatch = html.match(/<meta[^>]*?(?:property|name)="og:title"[^>]*?content="([^"]+)"/i) ||
-                             html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:title"/i) ||
-                             html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i) ||
-                             html.match(/<title>([^<]+)<\/title>/i);
-          if (titleMatch && titleMatch[1]) {
-            title = titleMatch[1].split(" de segunda mano por")[0].trim();
-            title = title.replace(/&amp;/g, "&").replace(/&quot;/g, '"');
-          }
+            if (!title) return null;
 
-          if (!title) return null;
-
-          // Price
-          let price = 0;
-          const priceMatch = html.match(/"price":\s*"(\d+(?:\.\d+)?)"/) ||
-                             html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
-                             html.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/);
-          if (priceMatch && priceMatch[1]) {
-            price = parseFloat(priceMatch[1]);
-          } else {
-            const descMatch = html.match(/por\s+(\d+(?:\.\d+)?)\s*EUR/i) ||
-                              html.match(/(\d+(?:\.\d+)?)\s*€/);
-            if (descMatch && descMatch[1]) {
-              price = parseFloat(descMatch[1]);
+            // Price
+            let price = 0;
+            const priceMatch = html.match(/"price":\s*"(\d+(?:\.\d+)?)"/) ||
+                               html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
+                               html.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/);
+            if (priceMatch && priceMatch[1]) {
+              price = parseFloat(priceMatch[1]);
+            } else {
+              const descMatch = html.match(/por\s+(\d+(?:\.\d+)?)\s*EUR/i) ||
+                                html.match(/(\d+(?:\.\d+)?)\s*€/);
+              if (descMatch && descMatch[1]) {
+                price = parseFloat(descMatch[1]);
+              }
             }
+
+            // Filter out cheap placeholders under 5€
+            if (price < 5) return null;
+
+            // Location
+            let location = "";
+            const locMatch = html.match(/"address":\s*"([^"]+)"/) ||
+                             html.match(/"location":\s*{\s*"city":\s*"([^"]+)"/);
+            if (locMatch && locMatch[1]) {
+              location = locMatch[1];
+            }
+
+            // Image
+            let imageUrl = "";
+            const imgMatch = html.match(/<meta[^>]*?(?:property|name)="og:image"[^>]*?content="([^"]+)"/i) ||
+                             html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:image"/i) ||
+                             html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
+            if (imgMatch && imgMatch[1]) {
+              imageUrl = imgMatch[1];
+            }
+
+            return { title, price, location: location || "España", imageUrl, webLink: url };
+          } catch (err) {
+            console.warn(`[fetchWallapopDetailsForUrls] Failed parsing ${url}:`, err);
+            return null;
           }
+        })
+      );
 
-          // Filter out cheap placeholders under 5€
-          if (price < 5) return null;
-
-          // Location
-          let location = "";
-          const locMatch = html.match(/"address":\s*"([^"]+)"/) ||
-                           html.match(/"location":\s*{\s*"city":\s*"([^"]+)"/);
-          if (locMatch && locMatch[1]) {
-            location = locMatch[1];
-          }
-
-          // Image
-          let imageUrl = "";
-          const imgMatch = html.match(/<meta[^>]*?(?:property|name)="og:image"[^>]*?content="([^"]+)"/i) ||
-                           html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:image"/i) ||
-                           html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
-          if (imgMatch && imgMatch[1]) {
-            imageUrl = imgMatch[1];
-          }
-
-          return { title, price, location: location || "España", imageUrl, webLink: url };
-        } catch (err) {
-          console.warn(`[fetchWallapopDetailsForUrls] Failed parsing ${url}:`, err);
-          return null;
-        }
-      })
-    );
+      items.push(...batchResults);
+      if (i + BATCH_SIZE < urls.length) {
+        await new Promise(r => setTimeout(r, DELAY_MS));
+      }
+    }
 
     return {
       success: true,
