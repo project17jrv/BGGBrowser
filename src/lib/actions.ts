@@ -1284,16 +1284,18 @@ export async function searchWallapopUrls(query: string) {
           ...extraHeaders,
         },
       });
-
     // Formulate queries with "juego" and "juego de mesa"
     const cleanQuery = query.toLowerCase();
     const hasJuego = cleanQuery.includes("juego");
     const hasMesa = cleanQuery.includes("mesa");
 
-    const qBase = query;
-    const qJuego = hasJuego ? query : `${query} juego`;
-    const qJuegoMesa = (hasJuego && hasMesa) ? query : `${query} juego de mesa`;
-    const qMesaJuego = (hasJuego && hasMesa) ? query : `juego de mesa ${query}`;
+    // Standard negative search terms to exclude accessories/expansions
+    const EXCLUDES = " -inserto -recurso -organizador -expansion -expansión -promo -token -tokens -organizer -componentes -3d -pintado";
+
+    const qBase = `${query}${EXCLUDES}`;
+    const qJuego = hasJuego ? `${query}${EXCLUDES}` : `${query} juego${EXCLUDES}`;
+    const qJuegoMesa = (hasJuego && hasMesa) ? `${query}${EXCLUDES}` : `${query} juego de mesa${EXCLUDES}`;
+    const qMesaJuego = (hasJuego && hasMesa) ? `${query}${EXCLUDES}` : `juego de mesa ${query}${EXCLUDES}`;
 
     // Search targets
     const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}`;
@@ -1432,6 +1434,13 @@ export async function fetchWallapopDetailsForUrls(urls: string[]) {
 
             // Filter out cheap placeholders under 5€
             if (price < 5) return null;
+
+            // Check for negative filters in title (double-check defense)
+            const forbiddenWords = ["inserto", "recurso", "organizador", "expansion", "expansión", "promo", "token", "tokens", "organizer", "componentes", "3d", "pintado"];
+            const titleLower = title.toLowerCase();
+            if (forbiddenWords.some(word => titleLower.includes(word))) {
+              return null; // Skip this accessory/expansion item
+            }
 
             // Location
             let location = "";
