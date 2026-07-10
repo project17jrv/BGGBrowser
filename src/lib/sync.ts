@@ -13,6 +13,20 @@ function toArray<T>(val: T | T[] | undefined): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
+// Decode HTML entities from BGG XML (e.g. &#039; -> ', &amp; -> &, &quot; -> ")
+function decodeHtmlEntities(str: string): string {
+  if (!str) return str;
+  return str
+    .replace(/&#039;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+}
+
 // Helper to delay execution
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -254,10 +268,10 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
 
       const names = toArray(item.name);
       const primaryNameObj = names.find((n: any) => n["@_type"] === "primary");
-      const name = primaryNameObj ? primaryNameObj["@_value"] : (names[0]?.["@_value"] || "Unknown Board Game");
+      const name = decodeHtmlEntities(primaryNameObj ? primaryNameObj["@_value"] : (names[0]?.["@_value"] || "Unknown Board Game"));
 
       const yearPublished = item.yearpublished ? parseInt(item.yearpublished["@_value"], 10) : null;
-      const description = item.description || "";
+      const description = decodeHtmlEntities(String(item.description || ""));
       const minPlayers = item.minplayers ? parseInt(item.minplayers["@_value"], 10) : null;
       const maxPlayers = item.maxplayers ? parseInt(item.maxplayers["@_value"], 10) : null;
       const minPlayTime = item.minplaytime ? parseInt(item.minplaytime["@_value"], 10) : null;
@@ -303,7 +317,7 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
         if (spanishVersion) {
           const canonical = spanishVersion.canonicalname?.["@_value"];
           if (canonical && canonical !== name) {
-            spanishName = canonical;
+            spanishName = decodeHtmlEntities(canonical);
           }
         }
       }
