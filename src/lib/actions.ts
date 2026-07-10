@@ -903,13 +903,16 @@ export async function autoImportWallapop(gameId: string) {
       });
     }
 
-    // Build optimized search query (Spanish name prioritized, appending "juego de mesa" if "juego" is not in name)
-    let searchQuery = game.spanishName || game.name;
+    // Build optimized search queries. Primary includes "juego de mesa" to narrow results.
+    // Secondary omits it, to catch listings whose titles don't include that phrase.
+    let baseName = game.spanishName || game.name;
     // Clean up punctuation that might mess up search index match
-    searchQuery = searchQuery.replace(/[!\?\(\):\-]/g, " ").replace(/\s+/g, " ").trim();
-    if (!searchQuery.toLowerCase().includes("juego")) {
-      searchQuery = `${searchQuery} juego de mesa`;
-    }
+    baseName = baseName.replace(/[!\?\(\):\-]/g, " ").replace(/\s+/g, " ").trim();
+    const searchQuery = baseName.toLowerCase().includes("juego")
+      ? baseName
+      : `${baseName} juego de mesa`;
+    // Secondary query uses just the base name (no "juego de mesa" suffix)
+    const secondaryQuery = baseName;
 
     const isGameAnExpansion = game.isExpansion || 
       ['ampliacion', 'ampliación', 'expansion', 'expansión', 'expansiones'].some(kw => 
@@ -918,8 +921,8 @@ export async function autoImportWallapop(gameId: string) {
 
     console.log(`[Wallapop Auto-Import] Starting search for: "${searchQuery}" (Is expansion: ${isGameAnExpansion})`);
 
-    let html = "";
-    let uniqueUrls: string[] = [];
+
+
 
     // Rotating user agents to avoid per-UA rate limits
     const USER_AGENTS = [
@@ -943,49 +946,73 @@ export async function autoImportWallapop(gameId: string) {
     // Helper: sleep for ms
     const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-    // --- SEARCH STAGE 1: Brave Search (try up to 2 different UAs) ---
-    for (let attempt = 0; attempt < 2 && uniqueUrls.length === 0; attempt++) {
+    // Run all search stages and accumulate all unique URLs (don't stop at first result)
+    const allFoundUrls = new Set<string>();
+
+    const extractBraveUrls = (html: string): string[] => {
+      const matches = [...html.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
+      return [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))]; 
+    };
+    const extractYahooUrls = (html: string): string[] => {
+      const ruMatches = [...html.matchAll(/RU=([^/&"]+)/g)];
+      const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
+      return [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
+    };
+    const extractDDGUrls = (html: string): string[] => {
+      const hrefs = [...html.matchAll(/href="([^"]*uddg=[^"]*)"/g)].map(m => m[1]);
+      const decoded = hrefs.map(h => { try { const m = h.match(/uddg=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; } catch { return null; } }).filter(Boolean) as string[];
+      return [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
+    };
+
+    // Helper: try a query on Brave, add results to set
+    const tryBrave = async (query: string, uaIdx: number) => {
       try {
-        if (attempt > 0) await sleep(1000); // small pause between retries
-        const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(searchQuery)}`;
-        const braveRes = await fetchWithUA(braveUrl, {}, attempt);
-        console.log(`[Wallapop Auto-Import] Brave attempt ${attempt + 1} -> Status: ${braveRes.status}`);
-        if (braveRes.ok) {
-          html = await braveRes.text();
-          const matches = [...html.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
-          uniqueUrls = [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))];
-          console.log(`[Wallapop Auto-Import] Brave found ${uniqueUrls.length} URLs.`);
+        const url = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
+        const res = await fetchWithUA(url, {}, uaIdx);
+        console.log(`[Wallapop Auto-Import] Brave ("${query.slice(0, 30)}...") -> Status: ${res.status}`);
+        if (res.ok) {
+          const h = await res.text();
+          extractBraveUrls(h).forEach(u => allFoundUrls.add(u));
         }
-      } catch (err) {
-        console.warn(`[Wallapop Auto-Import] Brave attempt ${attempt + 1} error:`, err);
-      }
+      } catch (err) { console.warn("[Wallapop Auto-Import] Brave error:", err); }
+    };
+
+    // Helper: try a query on Yahoo, add results to set
+    const tryYahoo = async (query: string, uaIdx: number) => {
+      try {
+        const url = `https://search.yahoo.com/search?p=wallapop+${encodeURIComponent(query)}`;
+        const res = await fetchWithUA(url, {}, uaIdx);
+        console.log(`[Wallapop Auto-Import] Yahoo ("${query.slice(0, 30)}...") -> Status: ${res.status}`);
+        if (res.ok) {
+          const h = await res.text();
+          extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
+        }
+      } catch (err) { console.warn("[Wallapop Auto-Import] Yahoo error:", err); }
+    };
+
+    // --- SEARCH STAGE 1: Brave (primary query) ---
+    await tryBrave(searchQuery, 0);
+    if (allFoundUrls.size === 0) {
+      await sleep(1000);
+      await tryBrave(searchQuery, 1);
     }
 
-    // --- SEARCH STAGE 2: Yahoo Search (no site: operator, uses RU= redirect decoding) ---
-    if (uniqueUrls.length === 0) {
-      console.log("[Wallapop Auto-Import] Brave empty/blocked. Trying Yahoo Search...");
-      for (let attempt = 0; attempt < 2 && uniqueUrls.length === 0; attempt++) {
-        try {
-          if (attempt > 0) await sleep(1500);
-          const yahooUrl = `https://search.yahoo.com/search?p=wallapop+${encodeURIComponent(searchQuery)}`;
-          const yahooRes = await fetchWithUA(yahooUrl, {}, attempt + 1);
-          console.log(`[Wallapop Auto-Import] Yahoo attempt ${attempt + 1} -> Status: ${yahooRes.status}`);
-          if (yahooRes.ok) {
-            const yahooHtml = await yahooRes.text();
-            const ruMatches = [...yahooHtml.matchAll(/RU=([^/&"]+)/g)];
-            const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
-            uniqueUrls = [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
-            console.log(`[Wallapop Auto-Import] Yahoo found ${uniqueUrls.length} URLs.`);
-          }
-        } catch (err) {
-          console.warn(`[Wallapop Auto-Import] Yahoo attempt ${attempt + 1} error:`, err);
-        }
-      }
+    // --- SEARCH STAGE 2: Yahoo (primary query) - always run to complement Brave ---
+    await tryYahoo(searchQuery, 1);
+    if (allFoundUrls.size === 0) {
+      await sleep(1500);
+      await tryYahoo(searchQuery, 2);
     }
 
-    // --- SEARCH STAGE 3: DuckDuckGo (site: operator, decodes uddg= params) ---
-    if (uniqueUrls.length === 0) {
-      console.log("[Wallapop Auto-Import] Yahoo empty/blocked. Trying DuckDuckGo...");
+    // --- SEARCH STAGE 3: Secondary query (no "juego de mesa") on Yahoo ---
+    if (searchQuery !== secondaryQuery) {
+      console.log(`[Wallapop Auto-Import] Trying secondary query without suffix: "${secondaryQuery}"`);
+      await tryYahoo(secondaryQuery, 3);
+    }
+
+    // --- SEARCH STAGE 4: DuckDuckGo fallback if still nothing ---
+    if (allFoundUrls.size === 0) {
+      console.log("[Wallapop Auto-Import] No results yet. Trying DuckDuckGo...");
       try {
         const ddgUrl = `https://html.duckduckgo.com/html/?q=site:es.wallapop.com/item+${encodeURIComponent(searchQuery)}`;
         const ddgRes = await fetchWithUA(ddgUrl, {}, 2);
@@ -993,21 +1020,17 @@ export async function autoImportWallapop(gameId: string) {
         if (ddgRes.ok) {
           const ddgHtml = await ddgRes.text();
           if (!ddgHtml.includes("bots use") && !ddgHtml.includes("captcha") && !ddgHtml.includes("robot")) {
-            const hrefs = [...ddgHtml.matchAll(/href="([^"]*uddg=[^"]*)"/g)].map(m => m[1]);
-            const decoded = hrefs.map(h => { try { const m = h.match(/uddg=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; } catch { return null; } }).filter(Boolean) as string[];
-            uniqueUrls = [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
-            console.log(`[Wallapop Auto-Import] DDG found ${uniqueUrls.length} URLs.`);
+            extractDDGUrls(ddgHtml).forEach(u => allFoundUrls.add(u));
+            console.log(`[Wallapop Auto-Import] DDG found ${allFoundUrls.size} URLs.`);
           } else {
             console.log("[Wallapop Auto-Import] DDG returned a bot-check page.");
           }
         }
-      } catch (err) {
-        console.warn("[Wallapop Auto-Import] DuckDuckGo error:", err);
-      }
+      } catch (err) { console.warn("[Wallapop Auto-Import] DuckDuckGo error:", err); }
     }
 
-    // --- SEARCH STAGE 4: Bing fallback ---
-    if (uniqueUrls.length === 0) {
+    // --- SEARCH STAGE 5: Bing fallback ---
+    if (allFoundUrls.size === 0) {
       console.log("[Wallapop Auto-Import] DDG empty/blocked. Trying Bing...");
       try {
         const bingUrl = `https://www.bing.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(searchQuery)}`;
@@ -1017,16 +1040,16 @@ export async function autoImportWallapop(gameId: string) {
           const bingHtml = await bingRes.text();
           if (!bingHtml.includes("desafío") && !bingHtml.includes("captcha") && !bingHtml.includes("authmode")) {
             const matches = [...bingHtml.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
-            uniqueUrls = [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))];
-            console.log(`[Wallapop Auto-Import] Bing found ${uniqueUrls.length} URLs.`);
+            [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))].forEach(u => allFoundUrls.add(u));
+            console.log(`[Wallapop Auto-Import] Bing found ${allFoundUrls.size} URLs.`);
           } else {
             console.log("[Wallapop Auto-Import] Bing returned a bot-check page.");
           }
         }
-      } catch (err) {
-        console.warn("[Wallapop Auto-Import] Bing error:", err);
-      }
+      } catch (err) { console.warn("[Wallapop Auto-Import] Bing error:", err); }
     }
+
+    const uniqueUrls = [...allFoundUrls];
 
     if (uniqueUrls.length === 0) {
       return { success: false, error: "No se pudo conectar con ningún buscador para encontrar anuncios. Los motores de búsqueda han bloqueado temporalmente las peticiones desde este servidor. Inténtalo de nuevo en unos minutos o vincula el anuncio manualmente." };
