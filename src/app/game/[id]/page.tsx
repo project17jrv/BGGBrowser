@@ -325,7 +325,7 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
               aprendeContent={
                 <div className="flex flex-col gap-6 w-full animate-fade-in">
                   <ReviewVideosWidget gameId={game.id} customYoutubeUrl={game.youtubeUrl} />
-                  <TutorialForm bggId={game.bggId} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
+                  <TutorialForm bggId={game.bggId} gameName={game.spanishName || game.name} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
                   {/* Rules PDF manual (if exists) */}
                   {game.pdfUrl && (
                     <div className="rounded-2xl border bg-card p-5 shadow-premium flex items-center justify-between gap-4">

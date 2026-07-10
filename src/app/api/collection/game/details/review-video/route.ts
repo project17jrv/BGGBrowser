@@ -10,26 +10,29 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const gameId = searchParams.get("id");
+    const customQuery = searchParams.get("q");
 
-    if (!gameId) {
-      return NextResponse.json({ error: "Game ID is required" }, { status: 400 });
+    let searchQuery = "";
+    if (customQuery) {
+      searchQuery = customQuery;
+    } else {
+      if (!gameId) {
+        return NextResponse.json({ error: "Game ID or Search Query is required" }, { status: 400 });
+      }
+      const game = await prisma.game.findUnique({
+        where: { id: gameId },
+        select: { name: true, spanishName: true },
+      });
+      if (!game) {
+        return NextResponse.json({ error: "Game not found" }, { status: 404 });
+      }
+      searchQuery = `${game.spanishName || game.name} tutorial juego de mesa`;
     }
 
-    // 1. Fetch game details from DB
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
-      select: { name: true, spanishName: true, wallapopCache: true }, // We can cache inside game or keep it dynamic
-    });
-
-    if (!game) {
-      return NextResponse.json({ error: "Game not found" }, { status: 404 });
-    }
-
-    const searchQuery = game.spanishName || game.name;
-    console.log(`[YouTube Reviews] Searching reviews for: "${searchQuery}"`);
+    console.log(`[YouTube Reviews] Searching YouTube for query: "${searchQuery}"`);
 
     // 2. Fetch YouTube search results page
-    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery + " reseña juego de mesa")}`;
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`;
     
     const res = await fetch(searchUrl, {
       headers: {
