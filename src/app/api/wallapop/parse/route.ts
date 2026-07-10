@@ -27,9 +27,10 @@ export async function GET(req: NextRequest) {
 
     // 1. Extract Title
     let title = "";
-    const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) ||
-                       html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/) ||
-                       html.match(/<title>([^<]+)<\/title>/);
+    const titleMatch = html.match(/<meta[^>]*?(?:property|name)="og:title"[^>]*?content="([^"]+)"/i) ||
+                       html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:title"/i) ||
+                       html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i) ||
+                       html.match(/<title>([^<]+)<\/title>/i);
     if (titleMatch && titleMatch[1]) {
       // Wallapop titles often end with " de segunda mano por ... en ..."
       title = titleMatch[1].split(" de segunda mano por")[0].trim();
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     // 2. Extract Price
     let price = 0;
     const priceMatch = html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
-                       html.match(/property="product:price:amount"\s+content="([^"]+)"/) ||
+                       html.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/) ||
                        html.match(/"price":\s*"([^"]+)"/);
     if (priceMatch && priceMatch[1]) {
       price = parseFloat(priceMatch[1]);
@@ -54,7 +55,9 @@ export async function GET(req: NextRequest) {
 
     // 3. Extract Image
     let imageUrl = "";
-    const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/);
+    const imageMatch = html.match(/<meta[^>]*?(?:property|name)="og:image"[^>]*?content="([^"]+)"/i) ||
+                       html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:image"/i) ||
+                       html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
     if (imageMatch && imageMatch[1]) {
       imageUrl = imageMatch[1];
     }

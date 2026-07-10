@@ -1114,8 +1114,9 @@ export async function autoImportWallapop(gameId: string) {
 
         // 1. Extract Title
         let title = "";
-        const titleMatch = itemHtml.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) ||
-                           itemHtml.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/);
+        const titleMatch = itemHtml.match(/<meta[^>]*?(?:property|name)="og:title"[^>]*?content="([^"]+)"/i) ||
+                           itemHtml.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:title"/i) ||
+                           itemHtml.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i);
         if (titleMatch && titleMatch[1]) {
           title = titleMatch[1].split(" de segunda mano por")[0].trim();
           title = title.replace(/&amp;/g, "&").replace(/&quot;/g, '"');
@@ -1129,7 +1130,7 @@ export async function autoImportWallapop(gameId: string) {
         // 2. Extract Price
         let price = 0;
         const priceMatch = itemHtml.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
-                           itemHtml.match(/property="product:price:amount"\s+content="([^"]+)"/);
+                           itemHtml.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/);
         if (priceMatch && priceMatch[1]) {
           price = parseFloat(priceMatch[1]);
         } else {
@@ -1150,7 +1151,9 @@ export async function autoImportWallapop(gameId: string) {
 
         // 4. Extract Image
         let imageUrl = "";
-        const imgMatch = itemHtml.match(/<meta\s+property="og:image"\s+content="([^"]+)"/);
+        const imgMatch = itemHtml.match(/<meta[^>]*?(?:property|name)="og:image"[^>]*?content="([^"]+)"/i) ||
+                         itemHtml.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:image"/i) ||
+                         itemHtml.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
         if (imgMatch && imgMatch[1]) {
           imageUrl = imgMatch[1];
         }
@@ -1312,9 +1315,10 @@ export async function searchWallapopRaw(query: string) {
 
           // Title
           let title = "";
-          const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) ||
-                             html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/) ||
-                             html.match(/<title>([^<]+)<\/title>/);
+          const titleMatch = html.match(/<meta[^>]*?(?:property|name)="og:title"[^>]*?content="([^"]+)"/i) ||
+                             html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:title"/i) ||
+                             html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/i) ||
+                             html.match(/<title>([^<]+)<\/title>/i);
           if (titleMatch && titleMatch[1]) {
             title = titleMatch[1].split(" de segunda mano por")[0].trim();
             title = title.replace(/&amp;/g, "&").replace(/&quot;/g, '"');
@@ -1325,7 +1329,7 @@ export async function searchWallapopRaw(query: string) {
           // Price
           let price = 0;
           const priceMatch = html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
-                             html.match(/property="product:price:amount"\s+content="([^"]+)"/);
+                             html.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/);
           if (priceMatch && priceMatch[1]) {
             price = parseFloat(priceMatch[1]);
           } else {
@@ -1346,7 +1350,9 @@ export async function searchWallapopRaw(query: string) {
 
           // Image
           let imageUrl = "";
-          const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/);
+          const imgMatch = html.match(/<meta[^>]*?(?:property|name)="og:image"[^>]*?content="([^"]+)"/i) ||
+                           html.match(/<meta[^>]*?content="([^"]+)"[^>]*?(?:property|name)="og:image"/i) ||
+                           html.match(/<meta\s+name="twitter:image"\s+content="([^"]+)"/i);
           if (imgMatch && imgMatch[1]) {
             imageUrl = imgMatch[1];
           }
