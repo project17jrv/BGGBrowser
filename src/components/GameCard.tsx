@@ -24,6 +24,7 @@ interface GameCardProps {
     bestPlayers: string | null;
     owned?: boolean;
     isExpansion?: boolean;
+    spanishName?: string | null;
   };
 }
 
@@ -52,7 +53,7 @@ export default function GameCard({ game }: GameCardProps) {
       <Link href={`/game/${game.id}`} className="relative block aspect-[4/3] w-full overflow-hidden bg-muted">
         <Image
           src={imgSrc}
-          alt={game.name}
+          alt={game.spanishName || game.name}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
@@ -95,7 +96,7 @@ export default function GameCard({ game }: GameCardProps) {
         <div className="mb-2 flex items-start justify-between gap-2">
           <Link href={`/game/${game.id}`} className="group-hover:text-primary transition-colors duration-200">
             <h3 className="font-heading text-sm font-bold leading-tight line-clamp-1">
-              {game.name}
+              {game.spanishName || game.name}
             </h3>
           </Link>
           <div className="text-right shrink-0 mt-0.5">

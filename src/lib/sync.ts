@@ -55,6 +55,7 @@ interface BggCollectionItem {
   bggId: number;
   owned: boolean;
   status: string;
+  name: string;
 }
 
 // Fetch the user's collection from BGG XML API2
@@ -118,12 +119,14 @@ async function fetchCollection(username: string): Promise<BggCollectionItem[]> {
 
       const isOwned = item.status?.["@_own"] === "1";
       const isWishlist = item.status?.["@_wishlist"] === "1";
+      const name = item.name?.["#text"] || item.name || "";
 
       if (isOwned || isWishlist) {
         collectionItems.push({
           bggId,
           owned: isOwned,
           status: isOwned ? "in_collection" : "wishlist",
+          name,
         });
       }
     }
@@ -236,7 +239,7 @@ function getBestPlayerCount(item: any): string | null {
 
 interface SyncOptions {
   markAsOwned?: boolean;
-  statusMap?: Record<number, { owned: boolean; status: string }>;
+  statusMap?: Record<number, { owned: boolean; status: string; spanishName?: string | null }>;
 }
 
 // Process details and upsert into the DB
@@ -288,6 +291,9 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
       const localImageUrl = await downloadImage(item.image, bggId, false);
       const localThumbUrl = await downloadImage(item.thumbnail, bggId, true);
 
+      const collectionName = options?.statusMap && options.statusMap[bggId]?.spanishName;
+      const spanishName = collectionName && collectionName !== name ? collectionName : null;
+
       await prisma.game.upsert({
         where: { bggId },
         update: {
@@ -310,6 +316,7 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
             ? {
                 owned: options.statusMap[bggId].owned,
                 status: options.statusMap[bggId].status,
+                ...(spanishName ? { spanishName } : {}),
               }
             : options?.markAsOwned
             ? { owned: true }
@@ -366,6 +373,7 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
           status: options?.statusMap && options.statusMap[bggId]
             ? options.statusMap[bggId].status
             : "in_collection",
+          spanishName,
           isExpansion,
           categories: {
             connectOrCreate: categories.map((cat: string) => ({
@@ -431,11 +439,12 @@ export async function runSync(username: string): Promise<{ success: boolean; cou
     }
 
     const bggIds = collectionItems.map((item) => item.bggId);
-    const statusMap: Record<number, { owned: boolean; status: string }> = {};
+    const statusMap: Record<number, { owned: boolean; status: string; spanishName?: string | null }> = {};
     for (const item of collectionItems) {
       statusMap[item.bggId] = {
         owned: item.owned,
         status: item.status,
+        spanishName: item.name,
       };
     }
 
