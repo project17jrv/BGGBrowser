@@ -8,7 +8,7 @@ import FinancialForm from "@/components/FinancialForm";
 import PricesWidget from "@/components/PricesWidget";
 import SleevesWidget from "@/components/SleevesWidget";
 import WallapopWidget from "@/components/WallapopWidget";
-import { ChevronLeft, Star, Award, Users, Clock, Flame, Sparkles, FileText } from "lucide-react";
+import { ChevronLeft, Star, Award, Users, Clock, Flame, Sparkles } from "lucide-react";
 import { getMisutMeepleReview } from "@/lib/misutMeeple";
 import MusicWidget from "@/components/MusicWidget";
 import GameTabs from "@/components/GameTabs";
