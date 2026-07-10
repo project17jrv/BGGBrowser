@@ -4,7 +4,11 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 
-export default function SearchInput() {
+interface SearchInputProps {
+  basePath?: string;
+}
+
+export default function SearchInput({ basePath }: SearchInputProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -30,11 +34,12 @@ export default function SearchInput() {
         params.delete("search");
       }
 
-      router.push(`${pathname}?${params.toString()}`);
+      const targetPath = basePath || pathname;
+      router.push(`${targetPath}?${params.toString()}`);
     }, 350); // 350ms debounce
 
     return () => clearTimeout(delayDebounce);
-  }, [value, pathname, router, searchParams]);
+  }, [value, pathname, router, searchParams, basePath]);
 
   // Sync state if URL changes elsewhere
   useEffect(() => {

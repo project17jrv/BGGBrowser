@@ -3,7 +3,11 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { ArrowUpDown, ListFilter } from "lucide-react";
 
-export default function SortAndSize() {
+interface SortAndSizeProps {
+  basePath?: string;
+}
+
+export default function SortAndSize({ basePath }: SortAndSizeProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -22,7 +26,8 @@ export default function SortAndSize() {
       params.set("sortOrder", "asc");
     }
     params.set("page", "1"); // reset page
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   const handleOrderToggle = () => {
@@ -30,14 +35,16 @@ export default function SortAndSize() {
     const nextOrder = sortOrder === "asc" ? "desc" : "asc";
     params.set("sortOrder", nextOrder);
     params.set("page", "1");
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   const handleSizeChange = (newSize: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("size", newSize);
     params.set("page", "1");
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   return (

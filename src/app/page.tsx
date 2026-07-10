@@ -279,6 +279,7 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
             minYear={metadata.minYear}
             maxYear={metadata.maxYear}
             maxRank={metadata.maxRank}
+            basePath="/"
           />
         </Suspense>
       </aside>
@@ -287,8 +288,8 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
       <section className="flex-1 w-full flex flex-col gap-6">
         <Suspense fallback={<div className="h-16 w-full rounded-2xl border bg-card animate-pulse" />}>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border bg-card p-4 shadow-premium transition-all duration-300">
-            <SearchInput />
-            <SortAndSize />
+            <SearchInput basePath="/" />
+            <SortAndSize basePath="/" />
           </div>
         </Suspense>
 
@@ -323,7 +324,7 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
         )}
 
         <Suspense fallback={<div className="h-10 w-full rounded-2xl border bg-card animate-pulse" />}>
-          <Pagination currentPage={queryResult.currentPage} totalPages={queryResult.totalPages} />
+          <Pagination currentPage={queryResult.currentPage} totalPages={queryResult.totalPages} basePath="/" />
         </Suspense>
       </section>
     </div>

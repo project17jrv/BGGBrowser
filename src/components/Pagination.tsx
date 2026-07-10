@@ -6,9 +6,10 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
+  basePath?: string;
 }
 
-export default function Pagination({ currentPage, totalPages }: PaginationProps) {
+export default function Pagination({ currentPage, totalPages, basePath }: PaginationProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -19,7 +20,8 @@ export default function Pagination({ currentPage, totalPages }: PaginationProps)
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", pageNumber.toString());
     
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   // Generate pagination page numbers range (e.g. show 1, 2, 3... totalPages)

@@ -11,9 +11,10 @@ interface FiltersProps {
   minYear: number;
   maxYear: number;
   maxRank: number;
+  basePath?: string;
 }
 
-export default function Filters({ categories, mechanics, minYear, maxYear, maxRank }: FiltersProps) {
+export default function Filters({ categories, mechanics, minYear, maxYear, maxRank, basePath }: FiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -132,7 +133,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("expansions");
     }
 
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   // Run filter application when values change
@@ -175,7 +177,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     } else {
       params.delete("expansions");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   // Internal helper for badge triggers to prevent state lag
@@ -218,7 +221,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("expansions");
     }
 
-    router.push(`${pathname}?${params.toString()}`);
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
   };
 
   // Reset all filters
@@ -241,7 +245,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setShowFavoritesOnly(false);
     setShowExpansions(true);
 
-    router.push(pathname);
+    const targetPath = basePath || pathname;
+    router.push(targetPath);
   };
 
   const hasActiveFilters = 

@@ -139,6 +139,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
                 minYear={metadata.minYear}
                 maxYear={metadata.maxYear}
                 maxRank={metadata.maxRank}
+                basePath="/ranking"
               />
             </Suspense>
           </aside>
@@ -149,8 +150,8 @@ export default async function RankingPage({ searchParams }: RankingProps) {
             {/* Topbar: Search and Sorting controls */}
             <Suspense fallback={<div className="h-16 w-full rounded-2xl border bg-card animate-pulse" />}>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border bg-card p-4 shadow-premium transition-all duration-300">
-                <SearchInput />
-                <SortAndSize />
+                <SearchInput basePath="/ranking" />
+                <SortAndSize basePath="/ranking" />
               </div>
             </Suspense>
 
@@ -191,7 +192,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
 
             {/* Pagination Controls */}
             <Suspense fallback={<div className="h-10 w-full rounded-2xl border bg-card animate-pulse" />}>
-              <Pagination currentPage={queryResult.currentPage} totalPages={queryResult.totalPages} />
+              <Pagination currentPage={queryResult.currentPage} totalPages={queryResult.totalPages} basePath="/ranking" />
             </Suspense>
 
           </section>
