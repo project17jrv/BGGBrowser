@@ -1,19 +1,30 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Video, RefreshCw, AlertCircle, Play } from "lucide-react";
+import { Video, RefreshCw, AlertCircle, Play, Star } from "lucide-react";
 import { ReviewVideo } from "@/app/api/collection/game/details/review-video/route";
 
 interface ReviewVideosWidgetProps {
   gameId: string;
+  customYoutubeUrl?: string | null;
 }
 
-export default function ReviewVideosWidget({ gameId }: ReviewVideosWidgetProps) {
+// Helper to extract YouTube Video ID
+function getYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
+export default function ReviewVideosWidget({ gameId, customYoutubeUrl }: ReviewVideosWidgetProps) {
   const [videos, setVideos] = useState<ReviewVideo[]>([]);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const customVideoId = customYoutubeUrl ? getYouTubeId(customYoutubeUrl) : null;
 
   const fetchVideos = useCallback(async (isRefresh = false) => {
     try {
@@ -26,11 +37,39 @@ export default function ReviewVideosWidget({ gameId }: ReviewVideosWidgetProps) 
         throw new Error("No se pudieron cargar las reseñas en vídeo.");
       }
       const data = await res.json();
-      if (data.videos) {
-        setVideos(data.videos);
+      let fetchedVideos: ReviewVideo[] = data.videos || [];
+
+      // Integrate custom video if available
+      if (customVideoId) {
+        const hasCustom = fetchedVideos.some(v => v.id === customVideoId);
+        if (!hasCustom) {
+          fetchedVideos = [
+            {
+              id: customVideoId,
+              title: "★ Videotutorial Vinculado (Manual)"
+            },
+            ...fetchedVideos
+          ];
+        } else {
+          // If already in search results, highlight it and move to top
+          fetchedVideos = fetchedVideos.map(v => 
+            v.id === customVideoId ? { ...v, title: `★ ${v.title} (Vinculado)` } : v
+          );
+          const index = fetchedVideos.findIndex(v => v.id === customVideoId);
+          if (index > 0) {
+            const [item] = fetchedVideos.splice(index, 1);
+            fetchedVideos.unshift(item);
+          }
+        }
+      }
+
+      setVideos(fetchedVideos);
+      
+      // Auto-activate the custom video if present
+      if (customVideoId) {
+        setActiveVideoId(customVideoId);
+      } else if (fetchedVideos.length > 0) {
         setActiveVideoId(null);
-      } else {
-        setVideos([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al conectar con el servidor.");
@@ -38,7 +77,7 @@ export default function ReviewVideosWidget({ gameId }: ReviewVideosWidgetProps) 
       setLoading(false);
       setRefreshing(false);
     }
-  }, [gameId]);
+  }, [gameId, customVideoId]);
 
   useEffect(() => {
     fetchVideos();
@@ -124,6 +163,7 @@ export default function ReviewVideosWidget({ gameId }: ReviewVideosWidgetProps) 
       <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none scroll-smooth">
         {videos.map((vid) => {
           const isActive = vid.id === activeVideoId;
+          const isCustom = vid.id === customVideoId;
           const thumbUrl = `https://img.youtube.com/vi/${vid.id}/mqdefault.jpg`;
 
           return (
@@ -148,12 +188,18 @@ export default function ReviewVideosWidget({ gameId }: ReviewVideosWidgetProps) 
                     <Play size={12} className="text-black fill-black" />
                   </div>
                 </div>
+
+                {isCustom && (
+                  <div className="absolute top-2 left-2 rounded-lg bg-amber-500 text-white p-1 shadow-sm flex items-center justify-center">
+                    <Star size={10} className="fill-current" />
+                  </div>
+                )}
               </div>
 
               {/* Title */}
               <span className={`text-[10px] font-semibold leading-tight line-clamp-2 transition-colors ${
                 isActive ? "text-primary font-black" : "text-foreground group-hover:text-primary"
-              }`}>
+              } ${isCustom ? "text-amber-600 dark:text-amber-400" : ""}`}>
                 {vid.title}
               </span>
             </div>

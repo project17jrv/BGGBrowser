@@ -34,8 +34,6 @@ export default function FinancialForm({ game, onSaved }: FinancialFormProps) {
   const [played, setPlayed] = useState(game.played);
   const [notes, setNotes] = useState(game.notes || "");
   const [spanishName, setSpanishName] = useState(game.spanishName || "");
-  const [youtubeUrl, setYoutubeUrl] = useState(game.youtubeUrl || "");
-  const [pdfUrl, setPdfUrl] = useState(game.pdfUrl || "");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -56,8 +54,6 @@ export default function FinancialForm({ game, onSaved }: FinancialFormProps) {
       played,
       notes: notes || null,
       spanishName: spanishName || null,
-      youtubeUrl: youtubeUrl || null,
-      pdfUrl: pdfUrl || null,
     });
 
     setLoading(false);
@@ -238,35 +234,6 @@ export default function FinancialForm({ game, onSaved }: FinancialFormProps) {
           </label>
         </div>
 
-        {/* Videotutorial URL */}
-        <div className="flex flex-col gap-1.5 sm:col-span-2 border-t border-dashed pt-3">
-          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Video Tutorial (YouTube URL)
-          </label>
-          <input
-            type="url"
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            placeholder="Ej: https://www.youtube.com/watch?v=..."
-            className="w-full rounded-xl border bg-muted/20 px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-          />
-        </div>
-
-        {/* Manual Rules PDF URL */}
-        <div className="flex flex-col gap-1.5 sm:col-span-2">
-          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-            Reglas del Juego (PDF URL)
-          </label>
-          <input
-            type="url"
-            value={pdfUrl}
-            onChange={(e) => setPdfUrl(e.target.value)}
-            placeholder="Ej: https://boardgamegeek.com/filepage/..."
-            className="w-full rounded-xl border bg-muted/20 px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary transition-all"
-          />
-        </div>
-
-        {/* Notas */}
         <div className="flex flex-col gap-1.5 sm:col-span-2">
           <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Notas y desperfectos

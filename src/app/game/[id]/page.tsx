@@ -14,6 +14,7 @@ import MusicWidget from "@/components/MusicWidget";
 import ReviewVideosWidget from "@/components/ReviewVideosWidget";
 import TranslateDescriptionButton from "@/components/TranslateDescriptionButton";
 import GameTabs from "@/components/GameTabs";
+import TutorialForm from "@/components/TutorialForm";
 
 interface GameDetailProps {
   params: Promise<{ id: string }>;
@@ -323,8 +324,8 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
               }
               aprendeContent={
                 <div className="flex flex-col gap-6 w-full animate-fade-in">
-                  <ReviewVideosWidget gameId={game.id} />
-                  
+                  <ReviewVideosWidget gameId={game.id} customYoutubeUrl={game.youtubeUrl} />
+                  <TutorialForm bggId={game.bggId} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
                   {/* Rules PDF manual (if exists) */}
                   {game.pdfUrl && (
                     <div className="rounded-2xl border bg-card p-5 shadow-premium flex items-center justify-between gap-4">
