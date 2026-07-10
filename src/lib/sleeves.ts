@@ -69,6 +69,34 @@ const SLEEVES_FALLBACK_DB: Record<number, Omit<SleeveSize, "packsNeeded">[]> = {
   ],
 };
 
+function getSleeveName(w: number, h: number): string {
+  if (w >= 63 && w <= 64 && h >= 87 && h <= 89) {
+    return "Standard Card Game (63.5x88 mm)";
+  }
+  if (w >= 56 && w <= 58 && h >= 87 && h <= 90) {
+    return "Standard American / Chimera (57x89 mm)";
+  }
+  if (w >= 58 && w <= 60 && h >= 91 && h <= 93) {
+    return "Standard European (59x92 mm)";
+  }
+  if (w >= 43 && w <= 45 && h >= 67 && h <= 69) {
+    return "Mini European (44x68 mm)";
+  }
+  if (w >= 40 && w <= 42 && h >= 62 && h <= 64) {
+    return "Mini American (41x63 mm)";
+  }
+  if (w >= 69 && w <= 71 && h >= 109 && h <= 112) {
+    return "Tarot (70x110 mm)";
+  }
+  if (w >= 79 && w <= 81 && h >= 119 && h <= 122) {
+    return "Dixit / Large (80x120 mm)";
+  }
+  if (w >= 68 && w <= 72 && h >= 68 && h <= 72) {
+    return "Square (70x70 mm)";
+  }
+  return `${w}x${h} mm`;
+}
+
 export async function getGameSleeves(gameId: string, forceRefresh = false): Promise<SleevesCacheData | null> {
   try {
     // 1. Fetch game from SQLite
@@ -101,48 +129,55 @@ export async function getGameSleeves(gameId: string, forceRefresh = false): Prom
 
     let sizes: SleeveSize[] = [];
 
-    // Attempt to scrape BGG (in case Cloudflare allows it or they lift challenges on headers)
-    const url = `https://boardgamegeek.com/boardgame/${game.bggId}/any-slug/sleeves`;
+    // Query cardsetsbygame BGG JSON API (free of Cloudflare checks)
+    const url = `https://boardgamegeek.com/api/cardsetsbygame?objectid=${game.bggId}&objecttype=thing`;
     try {
       const res = await fetch(url, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         }
       });
 
       if (res.status === 200) {
-        const html = await res.text();
-        if (!html.includes("cf_chl")) {
-          // Cloudflare didn't block it! Let's parse.
-          // BGG page uses list items or tables. Let's look for standard patterns:
-          // e.g. "50 Sleeves needed" or "Card size: 63.5x88 mm"
-          // Since BGG sleeves page is complex, let's look for card size specifications in text
-          // Let's write a simple parser based on regular expressions if matches exist.
-          // Example pattern: standard BGG sleeve lists use links like /sleevesize/standard-card-game-63-5-x-88-mm
-          // Or text like: "Standard Card Game (63.5 x 88 mm) - 100 cards"
-          const regex = /([a-zA-Z\s]+)\s*\((\d+(?:\.\d+)?)\s*[xX]\s*(\d+(?:\.\d+)?)\s*mm\)\s*-\s*(\d+)\s*cards/gi;
-          const matches = [...html.matchAll(regex)];
-          
-          if (matches.length > 0) {
-            sizes = matches.map(m => {
-              const name = m[1].trim();
-              const width = parseFloat(m[2]);
-              const height = parseFloat(m[3]);
-              const count = parseInt(m[4], 10);
-              return {
-                name: `${name} (${width}x${height} mm)`,
-                count,
-                width,
-                height,
-                packsNeeded: Math.ceil(count / 50) // Assuming standard pack of 50
+        const data = await res.json();
+        const cardSets = data.cardSets || [];
+        const nonAddons = cardSets.filter((cs: any) => !cs.addon);
+        const targetSets = nonAddons.length > 0 ? nonAddons : cardSets;
+
+        const sizeMap: Record<string, { width: number; height: number; count: number; name: string }> = {};
+        for (const cs of targetSets) {
+          const cardTypes = cs.cardTypes || [];
+          for (const ct of cardTypes) {
+            const w = parseFloat(ct.width);
+            const h = parseFloat(ct.height);
+            const qty = parseInt(ct.quantity, 10);
+            if (isNaN(w) || isNaN(h) || isNaN(qty) || qty <= 0) continue;
+
+            const roundedW = Math.round(w * 10) / 10;
+            const roundedH = Math.round(h * 10) / 10;
+            const sizeKey = `${roundedW}x${roundedH}`;
+
+            if (!sizeMap[sizeKey] || sizeMap[sizeKey].count < qty) {
+              sizeMap[sizeKey] = {
+                width: roundedW,
+                height: roundedH,
+                count: qty,
+                name: ct.name || cs.name || "Cards",
               };
-            });
+            }
           }
         }
+
+        sizes = Object.values(sizeMap).map(item => ({
+          name: getSleeveName(item.width, item.height),
+          count: item.count,
+          width: item.width,
+          height: item.height,
+          packsNeeded: Math.ceil(item.count / 50)
+        }));
       }
     } catch (err) {
-      console.warn(`[Sleeves Scraper] BGG fetch failed, using fallback database. Error: ${err}`);
+      console.warn(`[Sleeves Scraper] BGG cardsets API failed, using fallback database. Error: ${err}`);
     }
 
     // 3. Fallback database lookup
@@ -155,7 +190,6 @@ export async function getGameSleeves(gameId: string, forceRefresh = false): Prom
         }));
         console.log(`[Sleeves Scraper] Found fallback data for game BGG ID: "${game.bggId}"`);
       } else {
-        // Return empty or general suggestion if not found
         sizes = [];
       }
     }
