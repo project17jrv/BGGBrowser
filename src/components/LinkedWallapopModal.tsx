@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { linkWallapopItem, searchWallapopRaw } from "@/lib/actions";
+import { linkWallapopItem, searchWallapopUrls, fetchWallapopDetailsForUrls } from "@/lib/actions";
 import { X, Plus, Link, MapPin, DollarSign, Tag, Search, ExternalLink, ImageOff, Sparkles, Loader2, Truck } from "lucide-react";
 
 interface LinkedWallapopModalProps {
@@ -25,8 +25,11 @@ export default function LinkedWallapopModal({ gameId, gameName, isOpen, onClose,
   
   // Search tab states
   const [searchQuery, setSearchQuery] = useState(gameName);
+  const [allUrls, setAllUrls] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchResults, setSearchResults] = useState<WallapopSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [loadingPage, setLoadingPage] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
   // Manual tab states
@@ -49,14 +52,48 @@ export default function LinkedWallapopModal({ gameId, gameName, isOpen, onClose,
     }
   }, [isOpen, gameName]);
 
+  // Page changes & search changes effect
+  useEffect(() => {
+    const fetchPageDetails = async () => {
+      if (allUrls.length === 0) return;
+      setLoadingPage(true);
+      setSearchError(null);
+      
+      const startIndex = (currentPage - 1) * 15;
+      const endIndex = currentPage * 15;
+      const pageUrls = allUrls.slice(startIndex, endIndex);
+
+      try {
+        const res = await fetchWallapopDetailsForUrls(pageUrls);
+        if (res.success && res.items) {
+          setSearchResults(res.items);
+        } else {
+          setSearchError(res.error || "Error al cargar la página de resultados.");
+        }
+      } catch {
+        setSearchError("Error de conexión al cargar la página de resultados.");
+      } finally {
+        setLoadingPage(false);
+      }
+    };
+
+    fetchPageDetails();
+  }, [allUrls, currentPage]);
+
   const handleSearch = async (queryToSearch: string) => {
     if (!queryToSearch.trim()) return;
     setSearching(true);
     setSearchError(null);
+    setSearchResults([]);
+    setAllUrls([]);
     try {
-      const res = await searchWallapopRaw(queryToSearch);
-      if (res.success && res.items) {
-        setSearchResults(res.items);
+      const res = await searchWallapopUrls(queryToSearch);
+      if (res.success && res.urls) {
+        setAllUrls(res.urls);
+        setCurrentPage(1);
+        if (res.urls.length === 0) {
+          setSearchError("No se encontraron anuncios para este juego en Wallapop.");
+        }
       } else {
         setSearchError(res.error || "No se pudieron encontrar anuncios.");
       }
@@ -157,6 +194,8 @@ export default function LinkedWallapopModal({ gameId, gameName, isOpen, onClose,
 
   if (!isOpen) return null;
 
+  const totalPages = Math.ceil(allUrls.length / 15);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 transition-all duration-300">
       <div className="w-full max-w-3xl rounded-2xl border bg-card p-6 shadow-premium relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
@@ -252,9 +291,10 @@ export default function LinkedWallapopModal({ gameId, gameName, isOpen, onClose,
               </div>
 
               {/* Results Container */}
-              <div className="flex-grow overflow-y-auto pr-1">
+              <div className="flex-grow overflow-y-auto pr-1 flex flex-col justify-between">
+                
                 {searching ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+                  <div className="flex flex-col items-center justify-center py-16 text-center gap-3 my-auto">
                     <Loader2 size={32} className="animate-spin text-orange-600" />
                     <div className="flex flex-col gap-0.5">
                       <p className="text-xs font-bold text-foreground">Buscando anuncios en Wallapop...</p>
@@ -262,93 +302,123 @@ export default function LinkedWallapopModal({ gameId, gameName, isOpen, onClose,
                     </div>
                   </div>
                 ) : searchError ? (
-                  <div className="text-center py-12 text-xs text-red-500 font-medium">
+                  <div className="text-center py-12 text-xs text-red-500 font-medium my-auto">
                     {searchError}
                   </div>
-                ) : searchResults.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center text-xs text-muted-foreground gap-1.5">
+                ) : allUrls.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center text-xs text-muted-foreground gap-1.5 my-auto">
                     <Sparkles size={24} className="text-orange-500/40" />
                     <p>Introduce un término de búsqueda y pulsa Buscar.</p>
                   </div>
+                ) : loadingPage ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center gap-3 my-auto">
+                    <Loader2 size={32} className="animate-spin text-orange-600" />
+                    <p className="text-xs font-bold text-foreground">Cargando detalles de los anuncios...</p>
+                  </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-4">
-                    {searchResults.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex flex-col rounded-2xl bg-card border border-muted/50 p-2.5 hover:border-orange-500/40 hover:shadow-premium transition-all text-xs group relative cursor-pointer"
-                        onClick={() => handleLinkDirect(item)}
-                      >
-                        {/* Image Container with hover overlay */}
-                        <div className="w-full aspect-[4/3] sm:aspect-square rounded-xl overflow-hidden bg-muted relative mb-2.5 border border-muted/40 shrink-0">
-                          {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.title}
-                              className="object-cover h-full w-full group-hover:scale-105 transition-all duration-300"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                              }}
-                            />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center">
-                              <ImageOff size={18} className="text-muted-foreground/40" />
-                            </div>
-                          )}
-                          
-                          {/* Ver original link overlay */}
-                          <a
-                            href={item.webLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()} // don't trigger linkDirect
-                            className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm"
-                            title="Ver anuncio original en Wallapop"
-                          >
-                            <ExternalLink size={10} />
-                          </a>
-                        </div>
-
-                        {/* Info details */}
-                        <div className="flex flex-col gap-1.5 min-w-0 px-1 pb-1">
-                          
-                          {/* Price & Link button row */}
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-sm sm:text-base font-extrabold text-foreground font-heading">
-                              {item.price.toFixed(2)} €
-                            </span>
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pb-4">
+                      {searchResults.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex flex-col rounded-2xl bg-card border border-muted/50 p-2.5 hover:border-orange-500/40 hover:shadow-premium transition-all text-xs group relative cursor-pointer"
+                          onClick={() => handleLinkDirect(item)}
+                        >
+                          {/* Image Container with hover overlay */}
+                          <div className="w-full aspect-[4/3] sm:aspect-square rounded-xl overflow-hidden bg-muted relative mb-2.5 border border-muted/40 shrink-0">
+                            {item.imageUrl ? (
+                              <img
+                                src={item.imageUrl}
+                                alt={item.title}
+                                className="object-cover h-full w-full group-hover:scale-105 transition-all duration-300"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center">
+                                <ImageOff size={18} className="text-muted-foreground/40" />
+                              </div>
+                            )}
                             
-                            {/* Action button (where heart is in Wallapop) */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLinkDirect(item);
-                              }}
-                              disabled={loading}
-                              className="h-7 w-7 flex items-center justify-center rounded-full bg-orange-500/10 text-orange-600 hover:bg-orange-650 hover:text-white transition-all shadow-sm shrink-0 border border-orange-500/20"
-                              title="Vincular este anuncio"
+                            {/* Ver original link overlay */}
+                            <a
+                              href={item.webLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()} // don't trigger linkDirect
+                              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-lg p-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-sm"
+                              title="Ver anuncio original en Wallapop"
                             >
-                              <Plus size={14} />
-                            </button>
+                              <ExternalLink size={10} />
+                            </a>
                           </div>
 
-                          {/* Title */}
-                          <span 
-                            className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors font-medium leading-snug line-clamp-2 min-h-[2.5rem]" 
-                            title={item.title}
-                          >
-                            {item.title}
-                          </span>
+                          {/* Info details */}
+                          <div className="flex flex-col gap-1.5 min-w-0 px-1 pb-1">
+                            
+                            {/* Price & Link button row */}
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-sm sm:text-base font-extrabold text-foreground font-heading">
+                                {item.price.toFixed(2)} €
+                              </span>
+                              
+                              {/* Action button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleLinkDirect(item);
+                                }}
+                                disabled={loading}
+                                className="h-7 w-7 flex items-center justify-center rounded-full bg-orange-500/10 text-orange-600 hover:bg-orange-650 hover:text-white transition-all shadow-sm shrink-0 border border-orange-500/20"
+                                title="Vincular este anuncio"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            </div>
 
-                          {/* Delivery Status */}
-                          <span className="flex items-center gap-1 text-[9px] text-[#8c4799] font-black mt-1 uppercase tracking-wider shrink-0">
-                            <Truck size={12} className="shrink-0" />
-                            <span className="truncate">Envío disponible • {item.location}</span>
-                          </span>
+                            {/* Title */}
+                            <span 
+                              className="text-[11px] text-muted-foreground group-hover:text-foreground transition-colors font-medium leading-snug line-clamp-2 min-h-[2.5rem]" 
+                              title={item.title}
+                            >
+                              {item.title}
+                            </span>
 
+                            {/* Delivery Status */}
+                            <span className="flex items-center gap-1 text-[9px] text-[#8c4799] font-black mt-1 uppercase tracking-wider shrink-0">
+                              <Truck size={12} className="shrink-0" />
+                              <span className="truncate">Envío disponible • {item.location}</span>
+                            </span>
+
+                          </div>
                         </div>
+                      ))}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-muted shrink-0 text-[11px]">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1 || loadingPage}
+                          className="rounded-xl border border-muted bg-card hover:bg-muted px-3 py-1.5 font-bold transition-all disabled:opacity-40"
+                        >
+                          &larr; Anterior
+                        </button>
+                        <span className="text-muted-foreground font-semibold">
+                          Página {currentPage} de {totalPages} (Total {allUrls.length} anuncios)
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages || loadingPage}
+                          className="rounded-xl border border-muted bg-card hover:bg-muted px-3 py-1.5 font-bold transition-all disabled:opacity-40"
+                        >
+                          Siguiente &rarr;
+                        </button>
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
