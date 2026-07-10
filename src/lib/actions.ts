@@ -875,13 +875,32 @@ export async function autoImportWallapop(gameId: string) {
         spanishName: true,
         isExpansion: true,
         linkedWallapop: {
-          select: { webLink: true }
+          select: { id: true, title: true, webLink: true }
         }
       }
     });
 
     if (!game) {
       return { success: false, error: "Juego no encontrado." };
+    }
+
+    // Proactively clean up any pre-existing linked items that are no longer valid
+    const invalidExistingIds: string[] = [];
+    const existingLinks = new Set<string>();
+
+    for (const item of game.linkedWallapop) {
+      if (!isWallapopTitleValid(game.name, game.spanishName, item.title)) {
+        invalidExistingIds.push(item.id);
+      } else {
+        existingLinks.add(item.webLink);
+      }
+    }
+
+    if (invalidExistingIds.length > 0) {
+      console.log(`[Wallapop Auto-Import] Deleting ${invalidExistingIds.length} invalid pre-existing items for game ${game.spanishName || game.name}...`);
+      await prisma.linkedWallapopItem.deleteMany({
+        where: { id: { in: invalidExistingIds } }
+      });
     }
 
     // Build optimized search query (Spanish name prioritized, appending "juego de mesa" if "juego" is not in name)
@@ -1019,7 +1038,6 @@ export async function autoImportWallapop(gameId: string) {
       return { success: true, count: 0, message: "No se encontraron anuncios para este juego en Wallapop." };
     }
 
-    const existingLinks = new Set(game.linkedWallapop.map(item => item.webLink));
     
     // Optimized exclusions lists
     const EXCLUSION_KEYWORDS = [
