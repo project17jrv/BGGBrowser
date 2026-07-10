@@ -776,6 +776,94 @@ async function translateText(text: string): Promise<string> {
   }
 }
 
+function isWallapopTitleValid(
+  gameName: string,
+  gameSpanishName: string | null,
+  listingTitle: string
+): boolean {
+  const STOP_WORDS = new Set([
+    'de', 'la', 'el', 'en', 'y', 'o', 'a', 'con', 'para', 'por', 'del', 'los', 'las', 'un', 'una', 'unos', 'unas',
+    'the', 'of', 'and', 'or', 'in', 'on', 'with', 'for', 'to', 'by', 'at', 'an', 'a', 'is', 'juego', 'mesa', 'juegos',
+    'de segunda mano', 'segunda mano'
+  ]);
+
+  const VERY_GENERIC_WORDS = new Set([
+    'edicion', 'version', 'juego', 'mesa', 'juegos', 'board', 'game', 'edition', 'version', 'play', 'players', 'caja', 'box', 'pack'
+  ]);
+
+  const normalize = (text: string) => {
+    return text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // remove accents
+      .replace(/[^a-z0-9]/g, " ")     // replace non-alphanumeric with spaces
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const normListing = normalize(listingTitle);
+  const listingWords = new Set(normListing.split(" ").filter(w => w.length > 0));
+
+  const normGameFull = normalize(gameName + " " + (gameSpanishName || ""));
+  const gameWordsSet = new Set(normGameFull.split(" "));
+
+  // 1. Prevent matching listings that are clearly expansions or sub-items of the game.
+  const listingParts = listingTitle.split(/[:\-\(\)]/);
+  if (listingParts.length > 1) {
+    const listingSubtitle = listingParts.slice(1).join(" ");
+    const normListSub = normalize(listingSubtitle);
+    const listSubWords = normListSub.split(" ").filter(w => w.length > 0 && !STOP_WORDS.has(w));
+    const specificListSubWords = listSubWords.filter(w => !VERY_GENERIC_WORDS.has(w));
+
+    if (specificListSubWords.length > 0) {
+      const hasAnyInGame = specificListSubWords.some(w => gameWordsSet.has(w));
+      if (!hasAnyInGame) {
+        return false;
+      }
+    }
+  }
+
+  const checkSingleName = (candidateName: string): boolean => {
+    const parts = candidateName.split(/[:\-\(\)]/);
+    const mainPart = parts[0] || "";
+    const subtitlePart = parts.slice(1).join(" ");
+
+    const normMain = normalize(mainPart);
+    const normSubtitle = normalize(subtitlePart);
+
+    const mainWords = normMain.split(" ").filter(w => w.length > 0 && !STOP_WORDS.has(w));
+    const subtitleWords = normSubtitle.split(" ").filter(w => w.length > 0 && !STOP_WORDS.has(w));
+
+    if (mainWords.length === 0) return false;
+
+    const specificMainWords = mainWords.filter(w => !VERY_GENERIC_WORDS.has(w));
+
+    const matchedSpecificMain = specificMainWords.filter(w => listingWords.has(w));
+    if (matchedSpecificMain.length < specificMainWords.length) {
+      return false;
+    }
+
+    const specificSubtitleWords = subtitleWords.filter(w => !VERY_GENERIC_WORDS.has(w));
+
+    if (specificSubtitleWords.length > 0) {
+      const matchedSpecificSub = specificSubtitleWords.filter(w => listingWords.has(w));
+
+      if (specificMainWords.length <= 1) {
+        if (matchedSpecificSub.length < specificSubtitleWords.length) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
+
+  if (checkSingleName(gameName)) return true;
+  if (gameSpanishName && checkSingleName(gameSpanishName)) return true;
+
+  return false;
+}
+
 export async function autoImportWallapop(gameId: string) {
   try {
     // 1. Get the game info from DB
@@ -1016,16 +1104,8 @@ export async function autoImportWallapop(gameId: string) {
         }
 
         // --- OPTIMIZED FILTERING ---
-        // A. Title validation: Ensure listing title matches the game name parts (ignoring case, accents, and punctuation)
-        const normalizeText = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, "").trim();
-        
-        const gameParts = (game.spanishName || game.name)
-          .split(/[:\-\(\)]/)
-          .map(p => normalizeText(p))
-          .filter(p => p.length > 2); // filter out short connector words like "de", "el", "on"
-
-        const listingTitleNorm = normalizeText(title);
-        const matchesName = gameParts.some(part => listingTitleNorm.includes(part));
+        // A. Title validation: Ensure listing title matches the game name (ignoring case, accents, and punctuation)
+        const matchesName = isWallapopTitleValid(game.name, game.spanishName, title);
 
         if (!matchesName) {
           console.log(`[Wallapop Auto-Import] Skipped "${title}" -> Does not match game name "${game.spanishName || game.name}"`);
