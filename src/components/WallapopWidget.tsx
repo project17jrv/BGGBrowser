@@ -15,11 +15,12 @@ interface WallapopItem {
 
 interface WallapopWidgetProps {
   gameId: string;
+  gameName: string;
   initialItems: WallapopItem[];
   initialExcluded: string; // comma separated IDs
 }
 
-export default function WallapopWidget({ gameId, initialItems, initialExcluded }: WallapopWidgetProps) {
+export default function WallapopWidget({ gameId, gameName, initialItems, initialExcluded }: WallapopWidgetProps) {
   const [items, setItems] = useState<WallapopItem[]>(initialItems);
   const [excludedIds, setExcludedIds] = useState<string[]>(
     initialExcluded ? initialExcluded.split(",").filter(Boolean) : []
@@ -250,6 +251,7 @@ export default function WallapopWidget({ gameId, initialItems, initialExcluded }
       {/* LinkedWallapopModal */}
       <LinkedWallapopModal
         gameId={gameId}
+        gameName={gameName}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onAdded={handleAdded}

@@ -1241,3 +1241,138 @@ export async function autoImportWallapop(gameId: string) {
   }
 }
 
+/**
+ * Searches Wallapop items using Brave and Yahoo in parallel and fetches details.
+ * Does not perform any database insertion or strict name validation filtering.
+ */
+export async function searchWallapopRaw(query: string) {
+  try {
+    const allFoundUrls = new Set<string>();
+
+    const extractBraveUrls = (html: string): string[] => {
+      const matches = [...html.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
+      return [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))]; 
+    };
+    const extractYahooUrls = (html: string): string[] => {
+      const ruMatches = [...html.matchAll(/RU=([^/&"]+)/g)];
+      const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
+      return [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
+    };
+
+    const USER_AGENTS = [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+    ];
+
+    const fetchWithUA = (url: string, extraHeaders: Record<string, string> = {}, uaIndex = 0) =>
+      fetch(url, {
+        headers: {
+          "User-Agent": USER_AGENTS[uaIndex % USER_AGENTS.length],
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "es-ES,es;q=0.9",
+          ...extraHeaders,
+        },
+      });
+
+    // 1. Search Brave and Yahoo
+    const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
+    const yahooUrl = `https://search.yahoo.com/search?p=wallapop+${encodeURIComponent(query)}`;
+
+    await Promise.all([
+      fetchWithUA(braveUrl, {}, 0).then(async res => {
+        if (res.ok) {
+          const h = await res.text();
+          extractBraveUrls(h).forEach(u => allFoundUrls.add(u));
+        }
+      }).catch(err => console.warn("Brave search in searchWallapopRaw failed:", err)),
+      fetchWithUA(yahooUrl, {}, 1).then(async res => {
+        if (res.ok) {
+          const h = await res.text();
+          extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
+        }
+      }).catch(err => console.warn("Yahoo search in searchWallapopRaw failed:", err))
+    ]);
+
+    const uniqueUrls = [...allFoundUrls].slice(0, 15); // Limit to 15 items for speed and accuracy
+    console.log(`[searchWallapopRaw] Found ${uniqueUrls.length} unique URLs. Fetching details...`);
+
+    // 2. Fetch details for these URLs in parallel
+    const items = await Promise.all(
+      uniqueUrls.map(async (url) => {
+        try {
+          const res = await fetch(url, {
+            headers: {
+              "User-Agent": USER_AGENTS[2],
+              "Accept-Language": "es-ES,es;q=0.9",
+            }
+          });
+          if (!res.ok) return null;
+          const html = await res.text();
+
+          // Title
+          let title = "";
+          const titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) ||
+                             html.match(/<meta\s+name="twitter:title"\s+content="([^"]+)"/) ||
+                             html.match(/<title>([^<]+)<\/title>/);
+          if (titleMatch && titleMatch[1]) {
+            title = titleMatch[1].split(" de segunda mano por")[0].trim();
+            title = title.replace(/&amp;/g, "&").replace(/&quot;/g, '"');
+          }
+
+          if (!title) return null;
+
+          // Price
+          let price = 0;
+          const priceMatch = html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
+                             html.match(/property="product:price:amount"\s+content="([^"]+)"/);
+          if (priceMatch && priceMatch[1]) {
+            price = parseFloat(priceMatch[1]);
+          } else {
+            const descMatch = html.match(/por\s+(\d+(?:\.\d+)?)\s*EUR/i) ||
+                              html.match(/(\d+(?:\.\d+)?)\s*€/);
+            if (descMatch && descMatch[1]) {
+              price = parseFloat(descMatch[1]);
+            }
+          }
+
+          // Location
+          let location = "";
+          const locMatch = html.match(/"address":\s*"([^"]+)"/) ||
+                           html.match(/"location":\s*{\s*"city":\s*"([^"]+)"/);
+          if (locMatch && locMatch[1]) {
+            location = locMatch[1];
+          }
+
+          // Image
+          let imageUrl = "";
+          const imgMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/);
+          if (imgMatch && imgMatch[1]) {
+            imageUrl = imgMatch[1];
+          }
+
+          return { title, price, location: location || "España", imageUrl, webLink: url };
+        } catch (err) {
+          console.warn(`[searchWallapopRaw] Failed parsing ${url}:`, err);
+          return null;
+        }
+      })
+    );
+
+    return {
+      success: true,
+      items: items.filter(Boolean) as Array<{
+        title: string;
+        price: number;
+        location: string;
+        imageUrl: string;
+        webLink: string;
+      }>
+    };
+  } catch (error) {
+    console.error("searchWallapopRaw failed:", error);
+    return { success: false, error: "Error en el servidor al realizar la búsqueda de Wallapop." };
+  }
+}
+
+

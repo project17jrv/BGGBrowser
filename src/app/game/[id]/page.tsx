@@ -309,6 +309,7 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                   <PricesWidget gameId={game.id} />
                   <WallapopWidget
                     gameId={game.id}
+                    gameName={game.spanishName || game.name}
                     initialItems={game.linkedWallapop.map(item => ({
                       id: item.id,
                       title: item.title,
