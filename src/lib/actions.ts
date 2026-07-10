@@ -1004,10 +1004,21 @@ export async function autoImportWallapop(gameId: string) {
       await tryYahoo(searchQuery, 2);
     }
 
-    // --- SEARCH STAGE 3: Secondary query (no "juego de mesa") on Yahoo ---
+    // --- SEARCH STAGE 3: Secondary query (no "juego de mesa") on both Brave and Yahoo ---
     if (searchQuery !== secondaryQuery) {
       console.log(`[Wallapop Auto-Import] Trying secondary query without suffix: "${secondaryQuery}"`);
+      await sleep(800);
+      await tryBrave(secondaryQuery, 2);
       await tryYahoo(secondaryQuery, 3);
+    }
+
+    // --- SEARCH STAGE 3b: If game has English name different from Spanish, try English name too ---
+    if (game.name && game.spanishName && game.name !== game.spanishName) {
+      const englishBase = game.name.replace(/[!\?\(\):\-]/g, " ").replace(/\s+/g, " ").trim();
+      if (englishBase !== secondaryQuery) {
+        console.log(`[Wallapop Auto-Import] Trying English name query: "${englishBase}"`);
+        await tryYahoo(englishBase, 0);
+      }
     }
 
     // --- SEARCH STAGE 4: DuckDuckGo fallback if still nothing ---
