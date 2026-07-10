@@ -102,6 +102,22 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                   <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[9px] font-black text-indigo-500 uppercase tracking-wider">
                     BGG ID: {game.bggId}
                   </span>
+                  <span className={`font-black uppercase tracking-wider text-[9px] rounded-full border px-2 py-0.5 ${
+                    game.status === "in_collection" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                    game.status === "for_sale" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                    game.status === "sold" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                    "bg-muted-foreground/10 text-muted-foreground"
+                  }`}>
+                    {game.status === "in_collection" ? "En Colección" :
+                     game.status === "for_sale" ? "En Venta" :
+                     game.status === "sold" ? "Vendido" : "Deseado"}
+                  </span>
+                  {game.personalRating && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
+                      <Star size={10} className="fill-amber-500 text-amber-500" />
+                      <span>Nota: {game.personalRating}/10</span>
+                    </span>
+                  )}
                   {review && (
                     <a
                       href={review.url}
@@ -262,20 +278,7 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
               </div>
             )}
 
-            {/* Personal Status Info Badge */}
-            <div className="flex justify-between items-center text-xs font-bold border-t pt-4 mt-2">
-              <span className="text-muted-foreground">Estado en Colección:</span>
-              <span className={`font-black uppercase tracking-wider text-[10px] rounded-lg px-3 py-1.5 ${
-                game.status === "in_collection" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
-                game.status === "for_sale" ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
-                game.status === "sold" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
-                "bg-muted-foreground/10 text-muted-foreground"
-              }`}>
-                {game.status === "in_collection" ? "En Colección" :
-                 game.status === "for_sale" ? "En Venta" :
-                 game.status === "sold" ? "Vendido" : "Deseado"}
-              </span>
-            </div>
+
 
           </div>
 

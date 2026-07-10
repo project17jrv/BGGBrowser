@@ -15,21 +15,21 @@ export default function GameTabs({ ludotecaContent, preciosContent, aprendeConte
   const tabs = [
     {
       id: "ludoteca" as const,
-      label: "Gestión Ludoteca",
+      label: "Gestión",
       icon: Database,
       color: "text-indigo-500",
       activeBg: "border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-500/5",
     },
     {
       id: "precios" as const,
-      label: "Precios y Mercado",
+      label: "Mercado",
       icon: Tag,
       color: "text-emerald-500",
       activeBg: "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5",
     },
     {
       id: "aprende" as const,
-      label: "Aprende a Jugar",
+      label: "Tutorial",
       icon: BookOpen,
       color: "text-amber-500",
       activeBg: "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/5",
