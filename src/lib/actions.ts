@@ -956,12 +956,12 @@ export async function autoImportWallapop(gameId: string) {
     const extractYahooUrls = (html: string): string[] => {
       const ruMatches = [...html.matchAll(/RU=([^/&"]+)/g)];
       const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
+      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
     };
     const extractDDGUrls = (html: string): string[] => {
       const hrefs = [...html.matchAll(/href="([^"]*uddg=[^"]*)"/g)].map(m => m[1]);
       const decoded = hrefs.map(h => { try { const m = h.match(/uddg=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
+      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
     };
 
     // Helper: try a query on Brave, add results to set
@@ -980,7 +980,7 @@ export async function autoImportWallapop(gameId: string) {
     // Helper: try a query on Yahoo, add results to set
     const tryYahoo = async (query: string, uaIdx: number) => {
       try {
-        const url = `https://search.yahoo.com/search?p=wallapop+${encodeURIComponent(query)}`;
+        const url = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
         const res = await fetchWithUA(url, {}, uaIdx);
         console.log(`[Wallapop Auto-Import] Yahoo ("${query.slice(0, 30)}...") -> Status: ${res.status}`);
         if (res.ok) {
@@ -1129,7 +1129,8 @@ export async function autoImportWallapop(gameId: string) {
 
         // 2. Extract Price
         let price = 0;
-        const priceMatch = itemHtml.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
+        const priceMatch = itemHtml.match(/"price":\s*"(\d+(?:\.\d+)?)"/) ||
+                           itemHtml.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
                            itemHtml.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/);
         if (priceMatch && priceMatch[1]) {
           price = parseFloat(priceMatch[1]);
@@ -1259,7 +1260,7 @@ export async function searchWallapopRaw(query: string) {
     const extractYahooUrls = (html: string): string[] => {
       const ruMatches = [...html.matchAll(/RU=([^/&"]+)/g)];
       const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('wallapop.com/item/')))];
+      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
     };
 
     const USER_AGENTS = [
@@ -1280,7 +1281,7 @@ export async function searchWallapopRaw(query: string) {
 
     // 1. Search Brave and Yahoo
     const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
-    const yahooUrl = `https://search.yahoo.com/search?p=wallapop+${encodeURIComponent(query)}`;
+    const yahooUrl = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
 
     await Promise.all([
       fetchWithUA(braveUrl, {}, 0).then(async res => {
@@ -1328,7 +1329,8 @@ export async function searchWallapopRaw(query: string) {
 
           // Price
           let price = 0;
-          const priceMatch = html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
+          const priceMatch = html.match(/"price":\s*"(\d+(?:\.\d+)?)"/) ||
+                             html.match(/"price":\s*(\d+(?:\.\d+)?)/) ||
                              html.match(/(?:property|name)="product:price:amount"\s+content="([^"]+)"/);
           if (priceMatch && priceMatch[1]) {
             price = parseFloat(priceMatch[1]);
@@ -1338,6 +1340,12 @@ export async function searchWallapopRaw(query: string) {
             if (descMatch && descMatch[1]) {
               price = parseFloat(descMatch[1]);
             }
+          }
+
+          // Filter out cheap placeholders (0€, 1€, etc.) under 5€
+          if (price < 5) {
+            console.log(`[searchWallapopRaw] Skipped "${title}" (${price}€) -> Price below 5€ limit.`);
+            return null;
           }
 
           // Location
