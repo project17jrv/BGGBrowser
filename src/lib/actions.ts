@@ -1285,12 +1285,21 @@ export async function searchWallapopUrls(query: string) {
         },
       });
 
+    // Formulate queries with "juego" and "juego de mesa"
+    const cleanQuery = query.toLowerCase();
+    const hasJuego = cleanQuery.includes("juego");
+    const hasMesa = cleanQuery.includes("mesa");
+
+    const qBase = query;
+    const qJuego = hasJuego ? query : `${query} juego`;
+    const qJuegoMesa = (hasJuego && hasMesa) ? query : `${query} juego de mesa`;
+
     // We build the search urls
-    const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
-    const yahooUrl1 = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
-    const yahooUrl2 = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(query)}&b=11`;
-    const ddgUrl = `https://html.duckduckgo.com/html/?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
-    const bingUrl = `https://www.bing.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
+    const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}`;
+    const yahooUrl1 = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}`;
+    const yahooUrl2 = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=11`;
+    const ddgUrl = `https://html.duckduckgo.com/html/?q=site:es.wallapop.com/item+${encodeURIComponent(qBase)}`;
+    const bingUrl = `https://www.bing.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}`;
 
     // Execute searches in parallel
     await Promise.all([
