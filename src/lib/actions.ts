@@ -662,10 +662,20 @@ export async function getPlayStats() {
   }
 }
 
-// --- WALLAPOP VINCULACIÓN ACTIONS ---
-
 export async function linkWallapopItem(gameId: string, data: { title: string; price: number; webLink: string; location?: string; imageUrl?: string }) {
   try {
+    // Check if the link already exists for this game
+    const existing = await prisma.linkedWallapopItem.findFirst({
+      where: {
+        gameId,
+        webLink: data.webLink,
+      },
+    });
+
+    if (existing) {
+      return { success: false, error: "Este anuncio ya está vinculado a este juego." };
+    }
+
     const item = await prisma.linkedWallapopItem.create({
       data: {
         gameId,

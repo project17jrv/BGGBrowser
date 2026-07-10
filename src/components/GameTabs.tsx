@@ -10,7 +10,23 @@ interface GameTabsProps {
 }
 
 export default function GameTabs({ ludotecaContent, preciosContent, aprendeContent }: GameTabsProps) {
-  const [activeTab, setActiveTab] = useState<"ludoteca" | "precios" | "aprende">("ludoteca");
+  // Read initial tab from localStorage if available to persist across page reloads
+  const [activeTab, setActiveTab] = useState<"ludoteca" | "precios" | "aprende">(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("gameActiveTab");
+      if (saved === "ludoteca" || saved === "precios" || saved === "aprende") {
+        return saved;
+      }
+    }
+    return "ludoteca";
+  });
+
+  const handleTabChange = (tabId: "ludoteca" | "precios" | "aprende") => {
+    setActiveTab(tabId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("gameActiveTab", tabId);
+    }
+  };
 
   const tabs = [
     {
@@ -46,7 +62,7 @@ export default function GameTabs({ ludotecaContent, preciosContent, aprendeConte
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2 text-[11px] md:text-xs font-bold border-b-2 transition-all duration-200 focus:outline-none -mb-[2px] rounded-t-lg ${
                 isActive
                   ? `${tab.activeBg} border-current`
