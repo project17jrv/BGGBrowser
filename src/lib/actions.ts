@@ -55,9 +55,18 @@ export async function getGames(params: GetGamesParams) {
   // Search by Name (full or partial, case-insensitive)
   if (params.search) {
     andConditions.push({
-      name: {
-        contains: params.search,
-      },
+      OR: [
+        {
+          name: {
+            contains: params.search,
+          },
+        },
+        {
+          spanishName: {
+            contains: params.search,
+          },
+        },
+      ],
     });
   }
 

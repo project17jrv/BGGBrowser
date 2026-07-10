@@ -150,7 +150,7 @@ async function fetchGameDetails(bggIds: number[]): Promise<any[]> {
   for (let i = 0; i < bggIds.length; i += chunkSize) {
     const chunk = bggIds.slice(i, i + chunkSize);
     const idList = chunk.join(",");
-    const url = `https://boardgamegeek.com/xmlapi2/thing?id=${idList}&stats=1`;
+    const url = `https://boardgamegeek.com/xmlapi2/thing?id=${idList}&stats=1&versions=1`;
 
     console.log(`[Details] Fetching chunk ${Math.floor(i / chunkSize) + 1}/${Math.ceil(bggIds.length / chunkSize)} (IDs: ${chunk.length})...`);
     
@@ -292,7 +292,21 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
       const localThumbUrl = await downloadImage(item.thumbnail, bggId, true);
 
       const collectionName = options?.statusMap && options.statusMap[bggId]?.spanishName;
-      const spanishName = collectionName && collectionName !== name ? collectionName : null;
+      let spanishName = collectionName && collectionName !== name ? collectionName : null;
+
+      if (!spanishName && item.versions?.item) {
+        const versions = toArray(item.versions.item);
+        const spanishVersion = versions.find((v: any) => {
+          const links = toArray(v.link);
+          return links.some((l: any) => l["@_type"] === "language" && l["@_value"] === "Spanish");
+        });
+        if (spanishVersion) {
+          const canonical = spanishVersion.canonicalname?.["@_value"];
+          if (canonical && canonical !== name) {
+            spanishName = canonical;
+          }
+        }
+      }
 
       await prisma.game.upsert({
         where: { bggId },
@@ -312,11 +326,11 @@ async function syncGamesToDb(gamesDetails: any[], options?: SyncOptions) {
           maxPlayTime: isNaN(maxPlayTime as any) ? null : maxPlayTime,
           minAge: isNaN(minAge as any) ? null : minAge,
           isExpansion,
+          ...(spanishName ? { spanishName } : {}),
           ...(options?.statusMap && options.statusMap[bggId]
             ? {
                 owned: options.statusMap[bggId].owned,
                 status: options.statusMap[bggId].status,
-                ...(spanishName ? { spanishName } : {}),
               }
             : options?.markAsOwned
             ? { owned: true }
