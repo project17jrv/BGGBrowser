@@ -82,213 +82,221 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
           {/* RIGHT CONTENT COLUMN: Info & Tabs */}
           <div className="flex flex-col gap-6 lg:col-span-3">
             
-            {/* Core Game Info Card */}
-            <div className="flex flex-col gap-6 rounded-2xl border bg-card p-6 md:p-8 shadow-premium">
-              {/* Title & Year */}
-              <div>
-                <div className="flex flex-wrap items-center gap-3 mb-1.5">
-                  <h1 className="font-heading text-xl md:text-2xl font-black tracking-tight leading-none text-foreground">
-                    {game.spanishName || game.name}
-                  </h1>
-                  {game.spanishName && game.name !== game.spanishName && (
-                    <span className="text-[10px] text-muted-foreground font-semibold block w-full mt-1">
-                      Título original: <span className="italic">{game.name}</span>
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    {game.yearPublished && (
-                      <span className="rounded-full bg-secondary border px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
-                        {game.yearPublished}
+            {/* Core Game Info Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Main Game Info Card (2/3 width) */}
+              <div className="flex flex-col gap-6 rounded-2xl border bg-card p-6 md:p-8 shadow-premium md:col-span-2">
+                {/* Title & Year */}
+                <div>
+                  <div className="flex flex-wrap items-center gap-3 mb-1.5">
+                    <h1 className="font-heading text-xl md:text-2xl font-black tracking-tight leading-none text-foreground">
+                      {game.spanishName || game.name}
+                    </h1>
+                    {game.spanishName && game.name !== game.spanishName && (
+                      <span className="text-[10px] text-muted-foreground font-semibold block w-full mt-1">
+                        Título original: <span className="italic">{game.name}</span>
                       </span>
                     )}
-                    <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[9px] font-black text-indigo-500 uppercase tracking-wider">
-                      BGG ID: {game.bggId}
-                    </span>
-                    {review && (
-                      <a
-                        href={review.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider hover:scale-105 transition-all duration-200"
-                        title={`Leer reseña Misut Meeple: Sello ${review.rating}`}
-                      >
-                        <img
-                          src={`/misut-meeple/sello-${review.rating}.png`}
-                          alt={`Sello ${review.rating}`}
-                          className="h-3 w-3 object-contain shrink-0"
-                        />
-                        <span>Misut Meeple: Sello {review.rating}</span>
-                      </a>
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {game.yearPublished && (
+                        <span className="rounded-full bg-secondary border px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                          {game.yearPublished}
+                        </span>
+                      )}
+                      <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[9px] font-black text-indigo-500 uppercase tracking-wider">
+                        BGG ID: {game.bggId}
+                      </span>
+                      {review && (
+                        <a
+                          href={review.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider hover:scale-105 transition-all duration-200"
+                          title={`Leer reseña Misut Meeple: Sello ${review.rating}`}
+                        >
+                          <img
+                            src={`/misut-meeple/sello-${review.rating}.png`}
+                            alt={`Sello ${review.rating}`}
+                            className="h-3 w-3 object-contain shrink-0"
+                          />
+                          <span>Misut Meeple: Sello {review.rating}</span>
+                        </a>
+                      )}
+                      {game.isExpansion && (
+                        <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[9px] font-black text-amber-500 uppercase tracking-wider">
+                          Expansión
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Designers subtitle */}
+                  {game.designers.length > 0 && (
+                    <p className="text-[10px] font-semibold text-muted-foreground mt-2">
+                      Diseñado por: <span className="text-foreground">{game.designers.map(d => d.name).join(", ")}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Core Details Grid row */}
+                <div className="flex flex-wrap gap-x-4 gap-y-2 border-y py-3 text-[11px] text-muted-foreground font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <Clock size={13} className="text-pink-400" />
+                    <span>Tiempo: <span className="text-foreground">{playtimeText}</span></span>
+                  </div>
+                  {game.minAge && (
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles size={13} className="text-emerald-400" />
+                      <span>Edad: <span className="text-foreground">+{game.minAge} años</span></span>
+                    </div>
+                  )}
+                  {game.usersRated && (
+                    <div className="flex items-center gap-1.5">
+                      <Star size={13} className="text-amber-400" />
+                      <span>Votos: <span className="text-foreground">{game.usersRated.toLocaleString()}</span></span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-4">
+                    <h2 className="font-heading text-xs font-bold text-foreground tracking-tight">
+                      Descripción del Juego
+                    </h2>
+                    {game.description && (
+                      <TranslateDescriptionButton bggId={game.bggId} />
                     )}
-                    {game.isExpansion && (
-                      <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[9px] font-black text-amber-500 uppercase tracking-wider">
-                        Expansión
+                  </div>
+                  <div className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap font-sans bg-muted/10 p-4 rounded-2xl border max-h-[160px] overflow-y-auto">
+                    {game.description ? game.description : "Sin descripción disponible."}
+                  </div>
+                </div>
+
+                {/* Quick Specs Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* Rating Spec */}
+                  <div className="rounded-xl border bg-muted/20 p-2 text-center">
+                    <Star size={15} className="mx-auto text-amber-500 fill-amber-500 mb-1" />
+                    <span className="block text-[9px] text-muted-foreground font-semibold uppercase">Valoración</span>
+                    <span className="text-xs font-bold text-foreground">
+                      {game.averageRating ? game.averageRating.toFixed(2) : "N/A"}
+                    </span>
+                  </div>
+
+                  {/* Rank Spec */}
+                  <div className="rounded-xl border bg-muted/20 p-2 text-center">
+                    <Award size={15} className="mx-auto text-indigo-500 mb-1" />
+                    <span className="block text-[9px] text-muted-foreground font-semibold uppercase">Ranking</span>
+                    <span className="text-xs font-bold text-foreground">
+                      #{game.rank || "N/A"}
+                    </span>
+                  </div>
+
+                  {/* Players Spec */}
+                  <div className="rounded-xl border bg-muted/20 p-2 text-center flex flex-col justify-center items-center">
+                    <Users size={15} className="text-sky-500 mb-1" />
+                    <span className="block text-[9px] text-muted-foreground font-semibold uppercase leading-none">Jugadores</span>
+                    <span className="text-[10px] font-bold text-foreground mt-0.5 leading-none">
+                      {playersText}
+                    </span>
+                    {game.bestPlayers && (
+                      <span className="block text-[8px] font-black text-emerald-500 mt-1 leading-none uppercase tracking-wider">
+                        Mejor: {game.bestPlayers}
                       </span>
                     )}
                   </div>
-                </div>
-                
-                {/* Designers subtitle */}
-                {game.designers.length > 0 && (
-                  <p className="text-[10px] font-semibold text-muted-foreground mt-2">
-                    Diseñado por: <span className="text-foreground">{game.designers.map(d => d.name).join(", ")}</span>
-                  </p>
-                )}
-              </div>
 
-              {/* Core Details Grid row */}
-              <div className="flex flex-wrap gap-x-4 gap-y-2 border-y py-3 text-[11px] text-muted-foreground font-semibold">
-                <div className="flex items-center gap-1.5">
-                  <Clock size={13} className="text-pink-400" />
-                  <span>Tiempo: <span className="text-foreground">{playtimeText}</span></span>
-                </div>
-                {game.minAge && (
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles size={13} className="text-emerald-400" />
-                    <span>Edad: <span className="text-foreground">+{game.minAge} años</span></span>
-                  </div>
-                )}
-                {game.usersRated && (
-                  <div className="flex items-center gap-1.5">
-                    <Star size={13} className="text-amber-400" />
-                    <span>Votos: <span className="text-foreground">{game.usersRated.toLocaleString()}</span></span>
-                  </div>
-                )}
-              </div>
-
-              {/* Description */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-4">
-                  <h2 className="font-heading text-xs font-bold text-foreground tracking-tight">
-                    Descripción del Juego
-                  </h2>
-                  {game.description && (
-                    <TranslateDescriptionButton bggId={game.bggId} />
-                  )}
-                </div>
-                <div className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-wrap font-sans bg-muted/10 p-4 rounded-2xl border max-h-[160px] overflow-y-auto">
-                  {game.description ? game.description : "Sin descripción disponible."}
-                </div>
-              </div>
-
-              {/* Quick Specs Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {/* Rating Spec */}
-                <div className="rounded-xl border bg-muted/20 p-2 text-center">
-                  <Star size={15} className="mx-auto text-amber-500 fill-amber-500 mb-1" />
-                  <span className="block text-[9px] text-muted-foreground font-semibold uppercase">Valoración</span>
-                  <span className="text-xs font-bold text-foreground">
-                    {game.averageRating ? game.averageRating.toFixed(2) : "N/A"}
-                  </span>
-                </div>
-
-                {/* Rank Spec */}
-                <div className="rounded-xl border bg-muted/20 p-2 text-center">
-                  <Award size={15} className="mx-auto text-indigo-500 mb-1" />
-                  <span className="block text-[9px] text-muted-foreground font-semibold uppercase">Ranking</span>
-                  <span className="text-xs font-bold text-foreground">
-                    #{game.rank || "N/A"}
-                  </span>
-                </div>
-
-                {/* Players Spec */}
-                <div className="rounded-xl border bg-muted/20 p-2 text-center flex flex-col justify-center items-center">
-                  <Users size={15} className="text-sky-500 mb-1" />
-                  <span className="block text-[9px] text-muted-foreground font-semibold uppercase leading-none">Jugadores</span>
-                  <span className="text-[10px] font-bold text-foreground mt-0.5 leading-none">
-                    {playersText}
-                  </span>
-                  {game.bestPlayers && (
-                    <span className="block text-[8px] font-black text-emerald-500 mt-1 leading-none uppercase tracking-wider">
-                      Mejor: {game.bestPlayers}
+                  {/* Complexity Spec */}
+                  <div className="rounded-xl border bg-muted/20 p-2 text-center">
+                    <Flame size={15} className="mx-auto text-purple-500 mb-1" />
+                    <span className="block text-[9px] text-muted-foreground font-semibold uppercase">Complejidad</span>
+                    <span className="text-xs font-bold text-foreground">
+                      {game.complexityWeight ? game.complexityWeight.toFixed(2) : "N/A"}
                     </span>
-                  )}
+                  </div>
                 </div>
 
-                {/* Complexity Spec */}
-                <div className="rounded-xl border bg-muted/20 p-2 text-center">
-                  <Flame size={15} className="mx-auto text-purple-500 mb-1" />
-                  <span className="block text-[9px] text-muted-foreground font-semibold uppercase">Complejidad</span>
-                  <span className="text-xs font-bold text-foreground">
-                    {game.complexityWeight ? game.complexityWeight.toFixed(2) : "N/A"}
-                  </span>
+                {/* Personal Status Info Badge */}
+                <div className="rounded-xl border border-dashed bg-secondary/30 p-3 space-y-1.5">
+                  <div className="flex justify-between items-center text-[10px]">
+                    <span className="font-bold text-muted-foreground">Estado en Colección:</span>
+                    <span className={`font-black uppercase tracking-wider text-[9px] rounded px-1.5 py-0.5 ${
+                      game.status === "in_collection" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
+                      game.status === "for_sale" ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
+                      game.status === "sold" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
+                      "bg-muted-foreground/10 text-muted-foreground"
+                    }`}>
+                      {game.status === "in_collection" ? "En Colección" :
+                       game.status === "for_sale" ? "En Venta" :
+                       game.status === "sold" ? "Vendido" : "Deseado"}
+                    </span>
+                  </div>
+                  {game.personalRating && (
+                    <div className="flex justify-between items-center text-[10px] border-t border-dashed pt-1.5">
+                      <span className="font-bold text-muted-foreground">Nota Personal:</span>
+                      <span className="font-bold text-foreground flex items-center gap-1">
+                        <Star size={11} className="fill-amber-500 text-amber-500" />
+                        {game.personalRating}/10
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Personal Status Info Badge */}
-              <div className="rounded-xl border border-dashed bg-secondary/30 p-3 space-y-1.5">
-                <div className="flex justify-between items-center text-[10px]">
-                  <span className="font-bold text-muted-foreground">Estado en Colección:</span>
-                  <span className={`font-black uppercase tracking-wider text-[9px] rounded px-1.5 py-0.5 ${
-                    game.status === "in_collection" ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" :
-                    game.status === "for_sale" ? "bg-orange-500/10 text-orange-500 border border-orange-500/20" :
-                    game.status === "sold" ? "bg-red-500/10 text-red-500 border border-red-500/20" :
-                    "bg-muted-foreground/10 text-muted-foreground"
-                  }`}>
-                    {game.status === "in_collection" ? "En Colección" :
-                     game.status === "for_sale" ? "En Venta" :
-                     game.status === "sold" ? "Vendido" : "Deseado"}
-                  </span>
+              {/* Tags & Publishers Card (1/3 width) */}
+              <div className="flex flex-col gap-6 rounded-2xl border bg-card p-6 md:p-8 shadow-premium md:col-span-1">
+                {/* Categories & Mechanics Tag Clouds */}
+                <div className="flex flex-col gap-4">
+                  {game.categories.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">
+                        Categorías
+                      </h3>
+                      <div className="flex flex-wrap gap-1">
+                        {game.categories.map((cat) => (
+                          <span
+                            key={cat.id}
+                            className="rounded-full bg-secondary border px-2.5 py-0.5 text-[9px] font-semibold text-muted-foreground"
+                          >
+                            {cat.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {game.mechanics.length > 0 && (
+                    <div className="flex flex-col gap-1.5">
+                      <h3 className="text-[9px] font-black text-muted-foreground uppercase tracking-wider">
+                        Mecánicas
+                      </h3>
+                      <div className="flex flex-wrap gap-1">
+                        {game.mechanics.map((mec) => (
+                          <span
+                            key={mec.id}
+                            className="rounded-full bg-secondary border px-2.5 py-0.5 text-[9px] font-semibold text-muted-foreground"
+                          >
+                            {mec.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {game.personalRating && (
-                  <div className="flex justify-between items-center text-[10px] border-t border-dashed pt-1.5">
-                    <span className="font-bold text-muted-foreground">Nota Personal:</span>
-                    <span className="font-bold text-foreground flex items-center gap-1">
-                      <Star size={11} className="fill-amber-500 text-amber-500" />
-                      {game.personalRating}/10
+
+                {/* Publishers list */}
+                {game.publishers.length > 0 && (
+                  <div className="border-t pt-4 text-[9px] font-bold text-muted-foreground/80 leading-normal">
+                    EDITORIALES:{" "}
+                    <span className="text-foreground/90 font-medium block mt-1">
+                      {game.publishers.map(p => p.name).join(", ")}
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* Categories & Mechanics Tag Clouds */}
-              <div className="flex flex-col gap-4 border-t pt-4">
-                {game.categories.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                      Categorías
-                    </h3>
-                    <div className="flex flex-wrap gap-1">
-                      {game.categories.map((cat) => (
-                        <span
-                          key={cat.id}
-                          className="rounded-full bg-secondary border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground"
-                        >
-                          {cat.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {game.mechanics.length > 0 && (
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
-                      Mecánicas
-                    </h3>
-                    <div className="flex flex-wrap gap-1">
-                      {game.mechanics.map((mec) => (
-                        <span
-                          key={mec.id}
-                          className="rounded-full bg-secondary border px-2 py-0.5 text-[9px] font-semibold text-muted-foreground"
-                        >
-                          {mec.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Publishers list */}
-              {game.publishers.length > 0 && (
-                <div className="border-t pt-4 text-[9px] font-bold text-muted-foreground/80 leading-normal">
-                  EDITORIALES:{" "}
-                  <span className="text-foreground/90 font-medium">
-                    {game.publishers.map(p => p.name).join(", ")}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* LOWER PANEL: Full Width Tabbed View */}
