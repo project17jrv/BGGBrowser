@@ -11,10 +11,17 @@ import WallapopWidget from "@/components/WallapopWidget";
 import { ChevronLeft, Star, Award, Users, Clock, Flame, Sparkles, FileText } from "lucide-react";
 import { getMisutMeepleReview } from "@/lib/misutMeeple";
 import MusicWidget from "@/components/MusicWidget";
-import ReviewVideosWidget from "@/components/ReviewVideosWidget";
-import TranslateDescriptionButton from "@/components/TranslateDescriptionButton";
 import GameTabs from "@/components/GameTabs";
 import TutorialForm from "@/components/TutorialForm";
+import TranslateDescriptionButton from "@/components/TranslateDescriptionButton";
+import { Video } from "lucide-react";
+
+function getYouTubeId(url: string | null): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
 
 interface GameDetailProps {
   params: Promise<{ id: string }>;
@@ -324,8 +331,34 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
               }
               aprendeContent={
                 <div className="flex flex-col gap-6 w-full animate-fade-in">
-                  <ReviewVideosWidget gameId={game.id} customYoutubeUrl={game.youtubeUrl} />
+                  {(() => {
+                    const videoId = getYouTubeId(game.youtubeUrl);
+                    if (!videoId) return null;
+                    return (
+                      <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col gap-3.5">
+                        <div className="flex items-center gap-2 border-b pb-3.5">
+                          <Video size={16} className="text-amber-500 animate-pulse" />
+                          <h3 className="font-heading text-xs font-black uppercase tracking-wider text-foreground">
+                            Videotutorial Vinculado
+                          </h3>
+                        </div>
+                        <div className="aspect-video w-full rounded-xl overflow-hidden border bg-black shadow-inner">
+                          <iframe
+                            width="100%"
+                            height="100%"
+                            src={`https://www.youtube.com/embed/${videoId}`}
+                            title="Videotutorial"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            className="border-0"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <TutorialForm bggId={game.bggId} gameName={game.spanishName || game.name} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
+
                   {/* Rules PDF manual (if exists) */}
                   {game.pdfUrl && (
                     <div className="rounded-2xl border bg-card p-5 shadow-premium flex items-center justify-between gap-4">
@@ -346,43 +379,6 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                       >
                         Ver Reglamento
                       </a>
-                    </div>
-                  )}
-
-                  {/* Reseñas (Misut Meeple review if exists) */}
-                  {review ? (
-                    <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col gap-4">
-                      <div className="flex items-center justify-between border-b pb-3">
-                        <h4 className="font-heading text-xs font-bold text-foreground">Reseña Misut Meeple</h4>
-                        <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-                          Sello {review.rating}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-4">
-                        <img
-                          src={`/misut-meeple/sello-${review.rating}.png`}
-                          alt={`Sello ${review.rating}`}
-                          className="h-16 w-16 object-contain shrink-0 bg-muted/10 p-1.5 rounded-xl border"
-                        />
-                        <div className="flex flex-col gap-2">
-                          <p className="text-xs text-muted-foreground leading-normal">
-                            Esta copia dispone de una reseña analítica redactada por el blog de referencia **Misut Meeple**, habiendo obtenido la calificación de **Sello {review.rating}**.
-                          </p>
-                          <a
-                            href={review.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline self-start mt-1"
-                          >
-                            <span>Leer Reseña Completa</span>
-                            <span>&rarr;</span>
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-2xl border border-dashed bg-muted/5 p-5 text-center text-xs text-muted-foreground">
-                      No hay reseña escrita de Misut Meeple disponible para este juego.
                     </div>
                   )}
                 </div>
