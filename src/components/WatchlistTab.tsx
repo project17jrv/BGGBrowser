@@ -63,8 +63,7 @@ function getLudonautaPrice(ludonautaCache: string | null): number | null {
       const activeOffers = cache.offers?.filter((o: any) => 
         cache.includedLinks.includes(o.link) && 
         o.price !== null && 
-        o.stock !== "Agotado" &&
-        o.stock !== "Reservar"
+        o.stock !== "Agotado"
       ) || [];
       if (activeOffers.length > 0) {
         const sum = activeOffers.reduce((acc: number, o: any) => acc + o.price, 0);
@@ -341,7 +340,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
                 const sortedSelectedOffers = [...selectedOffers].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 
-                const availableOffers = selectedOffers.filter((o) => o.price !== null && o.stock !== "Agotado" && o.stock !== "Reservar");
+                const availableOffers = selectedOffers.filter((o) => o.price !== null && o.stock !== "Agotado");
                 const lowestShopPrice = availableOffers.length > 0
                   ? Math.min(...availableOffers.map((o) => o.price as number))
                   : null;

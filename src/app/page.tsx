@@ -419,8 +419,7 @@ function getLudonautaPrice(ludonautaCache: string | null): number | null {
       const activeOffers = cache.offers?.filter((o) => 
         cache.includedLinks?.includes(o.link) && 
         o.price !== null && 
-        o.stock !== "Agotado" && 
-        o.stock !== "Reservar"
+        o.stock !== "Agotado"
       ) || [];
       if (activeOffers.length > 0) {
         const sum = activeOffers.reduce((acc, o) => acc + (o.price as number), 0);

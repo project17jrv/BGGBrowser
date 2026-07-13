@@ -191,8 +191,7 @@ export function getBestBargainForGame(game: {
       const activeOffers = offers.filter((o: any) => 
         (included.length === 0 || included.includes(o.link)) && 
         o.price !== null && 
-        o.stock !== "Agotado" &&
-        o.stock !== "Reservar"
+        o.stock !== "Agotado"
       );
       
       if (activeOffers.length > 0) {
