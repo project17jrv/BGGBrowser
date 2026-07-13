@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { 
   RefreshCw, Store, ExternalLink, Calendar, 
   HelpCircle, Clock, Tag, ArrowUpRight, TrendingUp, AlertCircle,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Flame, Bell
 } from "lucide-react";
 import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride } from "@/lib/actions";
 import { PreviewButton } from "./PreviewButton";
+import { getBestBargainForGame } from "@/lib/bargainDetector";
 
 interface WallapopListing {
   id: string;
@@ -150,6 +151,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<"default" | "chollo">("default");
 
   const toggleExpand = (gameId: string) => {
     setExpandedIds((prev) => {
@@ -264,66 +266,146 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
           Ve al detalle de cualquier juego y cámbiale el estado de adquisición a &quot;Interesante&quot; para iniciar su seguimiento.
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {games.map((game) => {
-            const pNew = getLudonautaPrice(game.ludonautaCache);
-            
-            // Calculates Wallapop average price exactly as shown on the game details page (WallapopWidget)
-            const excludedIds = game.excludedWallapopIds ? game.excludedWallapopIds.split(",").filter(Boolean) : [];
-            const activeWallapopItems = game.linkedWallapop.filter((item) => !excludedIds.includes(item.id));
-            const wallapopAveragePrice = activeWallapopItems.length > 0
-              ? activeWallapopItems.reduce((sum, item) => sum + item.price, 0) / activeWallapopItems.length
-              : null;
+        <div className="space-y-4">
+          {/* Sorting bar */}
+          <div className="flex items-center justify-between bg-card border rounded-2xl p-4 shadow-sm flex-wrap gap-2">
+            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
+              Juegos en seguimiento ({games.length})
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground">Ordenar por:</span>
+              <div className="flex bg-muted/40 p-1 rounded-xl border border-border/40 gap-1 select-none">
+                <button
+                  type="button"
+                  onClick={() => setSortBy("default")}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                    sortBy === "default"
+                      ? "bg-card text-foreground shadow-sm border border-border/40"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Defecto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSortBy("chollo")}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                    sortBy === "chollo"
+                      ? "bg-purple-600 text-white shadow-premium border border-purple-600"
+                      : "text-purple-600 dark:text-purple-400 hover:bg-purple-500/5"
+                  }`}
+                >
+                  🔥 Nivel de Chollo
+                </button>
+              </div>
+            </div>
+          </div>
 
-            // Calculates Lowest Valid Second-Hand Price (Available listings only)
-            const availableWallapopItems = activeWallapopItems.filter(item => item.status !== "sold" && item.status !== "reserved");
-            const lowestWallapopPrice = availableWallapopItems.length > 0
-              ? Math.min(...availableWallapopItems.map(item => item.price))
-              : null;
-            
-            // Sort Wallapop items by price (lowest to highest)
-            const sortedActiveWallapopItems = [...activeWallapopItems].sort((a, b) => a.price - b.price);
-            
-            // Parse Ludonauta cache for selected shops
-            let selectedOffers: any[] = [];
-            if (game.ludonautaCache) {
-              try {
-                const cache = JSON.parse(game.ludonautaCache);
-                if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
-                  selectedOffers = cache.offers?.filter((o: any) => cache.includedLinks.includes(o.link)) || [];
+          <div className="flex flex-col gap-4">
+            {(() => {
+              // Precalculate and sort all games with their bargains
+              const mapped = games.map((game) => {
+                const pNew = getLudonautaPrice(game.ludonautaCache);
+                
+                const excludedIds = game.excludedWallapopIds ? game.excludedWallapopIds.split(",").filter(Boolean) : [];
+                const activeWallapopItems = game.linkedWallapop.filter((item) => !excludedIds.includes(item.id));
+                const wallapopAveragePrice = activeWallapopItems.length > 0
+                  ? activeWallapopItems.reduce((sum, item) => sum + item.price, 0) / activeWallapopItems.length
+                  : null;
+
+                const availableWallapopItems = activeWallapopItems.filter(item => item.status !== "sold" && item.status !== "reserved");
+                const lowestWallapopPrice = availableWallapopItems.length > 0
+                  ? Math.min(...availableWallapopItems.map(item => item.price))
+                  : null;
+                
+                const sortedActiveWallapopItems = [...activeWallapopItems].sort((a, b) => a.price - b.price);
+                
+                let selectedOffers: any[] = [];
+                if (game.ludonautaCache) {
+                  try {
+                    const cache = JSON.parse(game.ludonautaCache);
+                    if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
+                      selectedOffers = cache.offers?.filter((o: any) => cache.includedLinks.includes(o.link)) || [];
+                    }
+                  } catch {}
                 }
-              } catch {}
-            }
 
-            // Sort selected offers by price (lowest to highest, null values/N/A at the bottom)
-            const sortedSelectedOffers = [...selectedOffers].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+                const sortedSelectedOffers = [...selectedOffers].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 
-            // Calculates lowest valid shop price among selected available offers
-            const availableOffers = selectedOffers.filter((o) => o.price !== null && o.stock !== "Agotado");
-            const lowestShopPrice = availableOffers.length > 0
-              ? Math.min(...availableOffers.map((o) => o.price as number))
-              : null;
+                const availableOffers = selectedOffers.filter((o) => o.price !== null && o.stock !== "Agotado");
+                const lowestShopPrice = availableOffers.length > 0
+                  ? Math.min(...availableOffers.map((o) => o.price as number))
+                  : null;
 
-            // Parse Wallapop cache for listings & history (API search data)
-            let lastUpdated: string | null = null;
-            let listings: WallapopListing[] = [];
-            let priceHistory: PriceHistoryEntry[] = [];
-            
-            if (game.wallapopCache) {
-              try {
-                const parsed = JSON.parse(game.wallapopCache);
-                lastUpdated = parsed.lastUpdated;
-                listings = parsed.listings || [];
-                priceHistory = parsed.priceHistory || [];
-              } catch {}
-            }
+                let lastUpdated: string | null = null;
+                let listings: WallapopListing[] = [];
+                let priceHistory: PriceHistoryEntry[] = [];
+                
+                if (game.wallapopCache) {
+                  try {
+                    const parsed = JSON.parse(game.wallapopCache);
+                    lastUpdated = parsed.lastUpdated;
+                    listings = parsed.listings || [];
+                    priceHistory = parsed.priceHistory || [];
+                  } catch {}
+                }
 
-            // Sort listings cheapest first
-            const sortedListings = [...listings].sort((a, b) => a.price - b.price);
+                const sortedListings = [...listings].sort((a, b) => a.price - b.price);
+                const bargain = getBestBargainForGame(game);
 
-            const isUpdating = updatingId === game.id;
-            const hasData = lastUpdated !== null;
-            const isExpanded = expandedIds.has(game.id);
+                return {
+                  game,
+                  pNew,
+                  wallapopAveragePrice,
+                  lowestWallapopPrice,
+                  sortedActiveWallapopItems,
+                  sortedSelectedOffers,
+                  lowestShopPrice,
+                  lastUpdated,
+                  listings,
+                  priceHistory,
+                  sortedListings,
+                  bargain
+                };
+              });
+
+              if (sortBy === "chollo") {
+                mapped.sort((a, b) => {
+                  const tempA = a.bargain?.temperature ?? -1;
+                  const tempB = b.bargain?.temperature ?? -1;
+                  if (tempA !== tempB) {
+                    return tempB - tempA;
+                  }
+
+                  const priceA = a.bargain?.offerPrice ?? Infinity;
+                  const priceB = b.bargain?.offerPrice ?? Infinity;
+                  if (priceA !== priceB) {
+                    return priceA - priceB;
+                  }
+
+                  const discountA = a.bargain?.wallapopDiscountPct ?? -1;
+                  const discountB = b.bargain?.wallapopDiscountPct ?? -1;
+                  return discountB - discountA;
+                });
+              }
+
+              return mapped.map(({
+                game,
+                pNew,
+                wallapopAveragePrice,
+                lowestWallapopPrice,
+                sortedActiveWallapopItems,
+                sortedSelectedOffers,
+                lowestShopPrice,
+                lastUpdated,
+                listings,
+                priceHistory,
+                sortedListings,
+                bargain
+              }) => {
+                const isUpdating = updatingId === game.id;
+                const hasData = lastUpdated !== null;
+                const isExpanded = expandedIds.has(game.id);
 
             return (
               <div key={game.id} className="rounded-2xl border bg-card shadow-premium flex flex-col transition-all hover:border-primary/25 overflow-hidden">
@@ -404,6 +486,34 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                         {lowestWallapopPrice !== null ? `${lowestWallapopPrice.toFixed(2)}€` : "-"}
                       </span>
                     </div>
+
+                    {/* Bargain indicator */}
+                    {bargain && (
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                          Chollo
+                        </span>
+                        <div 
+                          className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black border transition-all ${
+                            bargain.temperature >= 80
+                              ? "bg-red-500/10 text-red-500 border-red-500/20 shadow-premium"
+                              : bargain.temperature >= 60
+                              ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                              : bargain.temperature >= 40
+                              ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+                              : "bg-muted text-muted-foreground border-border/40"
+                          }`}
+                          title={bargain.explanation}
+                        >
+                          {bargain.temperature >= 70 ? (
+                            <Flame size={12} className="text-orange-500 fill-orange-500 animate-pulse-slow" />
+                          ) : (
+                            <span>🌡️</span>
+                          )}
+                          <span>{bargain.temperature}°C</span>
+                        </div>
+                      </div>
+                    )}
                     
                   </div>
 
@@ -431,21 +541,84 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                 {/* Collapsible Details Content */}
                 {isExpanded && (
                   <div className="p-4 border-t bg-card/40 flex flex-col gap-4">
-                    {/* Sparkline chart */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
-                        Evolución de Precio Mínimo
-                      </span>
-                      <PriceSparkline history={priceHistory} />
-                    </div>
-
-                    {/* Last updated timestamp */}
-                    {hasData && (
-                      <div className="flex items-center gap-1 text-[9px] text-muted-foreground/80 font-semibold">
-                        <Clock size={10} />
-                        <span>Actualizado: {new Date(lastUpdated as string).toLocaleDateString("es-ES")} {new Date(lastUpdated as string).toLocaleTimeString("es-ES", {hour: "2-digit", minute:"2-digit"})}</span>
+                    {/* Grid for Evolution Sparkline & Bargain Thermometer */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                      {/* Left: Sparkline chart */}
+                      <div className="flex flex-col gap-1.5 h-full justify-between">
+                        <div className="flex flex-col gap-1">
+                          <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                            Evolución de Precio Mínimo (Wallapop)
+                          </span>
+                          <PriceSparkline history={priceHistory} />
+                        </div>
+                        {hasData && (
+                          <div className="flex items-center gap-1 text-[9px] text-muted-foreground/80 font-semibold mt-3">
+                            <Clock size={10} />
+                            <span>Actualizado: {new Date(lastUpdated as string).toLocaleDateString("es-ES")} {new Date(lastUpdated as string).toLocaleTimeString("es-ES", {hour: "2-digit", minute:"2-digit"})}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+
+                      {/* Right: Bargain Detector Thermometer */}
+                      {bargain ? (
+                        <div className="flex flex-col gap-2 bg-muted/15 border border-muted/50 rounded-2xl p-4 transition-all duration-300 hover:border-primary/20 hover:bg-muted/20">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider block">
+                              Detector de Chollos
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {bargain.temperature >= 70 ? (
+                                <Flame size={12} className="text-orange-500 fill-orange-500 animate-bounce" />
+                              ) : (
+                                <span className="text-xs">🌡️</span>
+                              )}
+                              <span className="text-[10px] font-extrabold text-foreground bg-muted/40 px-2 py-0.5 rounded-full border">
+                                {bargain.temperature}°C — {bargain.label}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Explanation */}
+                          <p className="text-xs font-bold text-foreground mt-1">
+                            {bargain.explanation}
+                          </p>
+                          
+                          {/* Thermometer Progress Bar */}
+                          <div className="h-3 w-full bg-muted/50 rounded-full overflow-hidden relative border border-border/20 shadow-inner mt-1">
+                            <div 
+                              className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-blue-500 via-emerald-500 via-yellow-500 via-orange-500 to-red-500"
+                              style={{ width: `${Math.min(100, bargain.temperature)}%` }}
+                            />
+                          </div>
+                          
+                          {/* Bargain Listing Context */}
+                          <div className="text-[10px] text-muted-foreground flex flex-col gap-0.5 mt-2 bg-card p-2.5 rounded-xl border border-border/40">
+                            <span className="font-bold text-foreground line-clamp-1">{bargain.title}</span>
+                            {bargain.location && <span>📍 {bargain.location}</span>}
+                            <span>{bargain.isLinked ? "🔗 Oferta seleccionada por ti" : "🔍 Encontrada automáticamente"}</span>
+                          </div>
+                          
+                          {/* Action Button */}
+                          <a
+                            href={bargain.webLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-2 flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-[11px] font-bold uppercase tracking-wider py-2 px-4 rounded-xl shadow-premium hover:shadow-premium-hover transition-all cursor-pointer text-center"
+                          >
+                            Ver Oferta en Wallapop ({bargain.offerPrice}€)
+                            <ArrowUpRight size={12} />
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-6 bg-muted/15 border border-muted/50 rounded-2xl h-full min-h-[160px] text-muted-foreground">
+                          <HelpCircle size={24} className="text-muted-foreground/60 mb-2" />
+                          <span className="text-xs font-bold">Sin ofertas disponibles</span>
+                          <span className="text-[10px] max-w-[200px] mt-1 text-muted-foreground/80 leading-normal">
+                            No hay ofertas de Wallapop cargadas para calcular el nivel de chollo.
+                          </span>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Selected Items Lists Stack (Wallapop below Shops) */}
                     <div className="flex flex-col gap-4 border-t border-dashed pt-4 flex-grow">
@@ -591,7 +764,9 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
             </div>
           );
-        })}
+        })
+      })()}
+      </div>
       </div>
       )}
 
