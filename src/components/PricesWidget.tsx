@@ -72,8 +72,12 @@ export default function PricesWidget({ gameId, gameName }: PricesWidgetProps) {
   const [included, setIncluded] = useState<Set<string>>(new Set());
 
   const handleToggleStock = useCallback((link: string, currentStock: string) => {
-    const isAvailable = currentStock === "En stock" || currentStock === "Disponible";
-    const newStock = isAvailable ? "Agotado" : "Disponible";
+    let newStock = "Disponible";
+    if (currentStock === "En stock" || currentStock === "Disponible") {
+      newStock = "Reservar";
+    } else if (currentStock === "Reservar") {
+      newStock = "Agotado";
+    }
     toggleShopStockOverride(gameId, link, newStock).then((res) => {
       if (res.success) {
         setData((prev) => {

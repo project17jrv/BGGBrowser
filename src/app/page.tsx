@@ -416,7 +416,12 @@ function getLudonautaPrice(ludonautaCache: string | null): number | null {
     
     // 1. If there are manually selected links, calculate average using only those
     if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
-      const activeOffers = cache.offers?.filter((o) => cache.includedLinks?.includes(o.link) && o.price !== null) || [];
+      const activeOffers = cache.offers?.filter((o) => 
+        cache.includedLinks?.includes(o.link) && 
+        o.price !== null && 
+        o.stock !== "Agotado" && 
+        o.stock !== "Reservar"
+      ) || [];
       if (activeOffers.length > 0) {
         const sum = activeOffers.reduce((acc, o) => acc + (o.price as number), 0);
         return sum / activeOffers.length;

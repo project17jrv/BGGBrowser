@@ -60,7 +60,12 @@ function getLudonautaPrice(ludonautaCache: string | null): number | null {
   try {
     const cache = JSON.parse(ludonautaCache);
     if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
-      const activeOffers = cache.offers?.filter((o: any) => cache.includedLinks.includes(o.link) && o.price !== null && o.stock !== "Agotado") || [];
+      const activeOffers = cache.offers?.filter((o: any) => 
+        cache.includedLinks.includes(o.link) && 
+        o.price !== null && 
+        o.stock !== "Agotado" &&
+        o.stock !== "Reservar"
+      ) || [];
       if (activeOffers.length > 0) {
         const sum = activeOffers.reduce((acc: number, o: any) => acc + o.price, 0);
         return sum / activeOffers.length;
@@ -181,8 +186,12 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   };
 
   const handleToggleShopStock = (gameId: string, offerLink: string, currentStock: string) => {
-    const isAvailable = currentStock === "En stock" || currentStock === "Disponible";
-    const newStock = isAvailable ? "Agotado" : "Disponible";
+    let newStock = "Disponible";
+    if (currentStock === "En stock" || currentStock === "Disponible") {
+      newStock = "Reservar";
+    } else if (currentStock === "Reservar") {
+      newStock = "Agotado";
+    }
     
     startTransition(async () => {
       try {
@@ -332,7 +341,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
                 const sortedSelectedOffers = [...selectedOffers].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
 
-                const availableOffers = selectedOffers.filter((o) => o.price !== null && o.stock !== "Agotado");
+                const availableOffers = selectedOffers.filter((o) => o.price !== null && o.stock !== "Agotado" && o.stock !== "Reservar");
                 const lowestShopPrice = availableOffers.length > 0
                   ? Math.min(...availableOffers.map((o) => o.price as number))
                   : null;
@@ -643,11 +652,18 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                 className={`inline-block rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider w-fit mt-0.5 border cursor-pointer select-none transition-all hover:scale-105 ${
                                   o.stock === "En stock" || o.stock === "Disponible"
                                     ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                                    : o.stock === "Reservar"
+                                    ? "bg-amber-500/10 border-amber-500/20 text-amber-500"
                                     : "bg-red-500/10 border-red-500/20 text-red-500"
                                 }`}
-                                title="Haga clic para cambiar stock (Disponible / Agotado)"
+                                title="Haga clic para cambiar stock (Disponible / Reservar / Agotado)"
                               >
-                                {o.stock === "En stock" || o.stock === "Disponible" ? "🟢 Disponible" : "🔴 Agotado"}
+                                {o.stock === "En stock" || o.stock === "Disponible" 
+                                  ? "🟢 Disponible" 
+                                  : o.stock === "Reservar"
+                                  ? "🟠 Reservar"
+                                  : "🔴 Agotado"
+                                }
                               </button>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
