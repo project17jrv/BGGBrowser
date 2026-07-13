@@ -948,12 +948,21 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                     )}
 
                                     {/* Link + Discard/Restore buttons */}
+                                    {/* Link + Preview + Discard/Restore buttons */}
                                     <div className="flex items-center gap-1 shrink-0">
+                                      <PreviewButton
+                                        url={cand.webLink}
+                                        label="Wallapop"
+                                        price={`${cand.price.toFixed(2)}€`}
+                                        badge={cand.location || undefined}
+                                        badgeVariant="green"
+                                        accentClass="hover:bg-green-500/15 hover:text-green-500"
+                                      />
                                       <a
                                         href={cand.webLink}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-secondary text-muted-foreground hover:bg-primary hover:text-white transition-all"
+                                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-secondary text-muted-foreground hover:bg-primary hover:text-white transition-all shadow-sm"
                                         title="Ver anuncio"
                                       >
                                         <ExternalLink size={9} />
