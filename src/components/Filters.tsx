@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
-import { SlidersHorizontal, RotateCcw, Heart, Calendar, Users, Clock, Award, Star, Bell } from "lucide-react";
+import { SlidersHorizontal, RotateCcw, Heart, Calendar, Users, Clock, Award, Star, Bell, Library } from "lucide-react";
 
 interface FiltersProps {
   categories: string[];
@@ -47,6 +47,9 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
   const [showInterestingOnly, setShowInterestingOnly] = useState<string>(
     searchParams.get("interestingOnly") || "all"
   );
+  const [inCollectionOnly, setInCollectionOnly] = useState<string>(
+    searchParams.get("inCollectionOnly") || "all"
+  );
   const [showExpansions, setShowExpansions] = useState(
     searchParams.get("expansions") !== "false"
   );
@@ -79,6 +82,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedMechanics(searchParams.get("mechanics")?.split(",").filter(Boolean) || []);
     setShowFavoritesOnly(searchParams.get("favorites") === "true");
     setShowInterestingOnly(searchParams.get("interestingOnly") || "all");
+    setInCollectionOnly(searchParams.get("inCollectionOnly") || "all");
     setShowExpansions(searchParams.get("expansions") !== "false");
     setShowOwned(searchParams.get("showOwned") !== "false");
     setShowWishlist(searchParams.get("showWishlist") !== "false");
@@ -147,6 +151,12 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.set("interestingOnly", showInterestingOnly);
     } else {
       params.delete("interestingOnly");
+    }
+
+    if (inCollectionOnly === "true" || inCollectionOnly === "false") {
+      params.set("inCollectionOnly", inCollectionOnly);
+    } else {
+      params.delete("inCollectionOnly");
     }
 
     if (showExpansions === false) {
@@ -221,6 +231,20 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     router.push(`${targetPath}?${params.toString()}`);
   };
 
+  // Toggle In-Collection Only
+  const toggleInCollectionOnly = (val: string) => {
+    setInCollectionOnly(val);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", "1");
+    if (val === "true" || val === "false") {
+      params.set("inCollectionOnly", val);
+    } else {
+      params.delete("inCollectionOnly");
+    }
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
+  };
+
   // Toggle Expansions
   const toggleExpansions = (checked: boolean) => {
     setShowExpansions(checked);
@@ -273,6 +297,12 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.set("interestingOnly", showInterestingOnly);
     } else {
       params.delete("interestingOnly");
+    }
+
+    if (inCollectionOnly === "true" || inCollectionOnly === "false") {
+      params.set("inCollectionOnly", inCollectionOnly);
+    } else {
+      params.delete("inCollectionOnly");
     }
 
     if (showExpansions === false) {
@@ -423,6 +453,54 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
             </button>
           </div>
         </div>
+
+        {/* In-Collection Segmented Control (Ranking page only) */}
+        {basePath === "/ranking" && (
+          <div className="flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-sm hover:border-primary/20 transition-all duration-300">
+            <div className="flex items-center gap-2 select-none">
+              <Library
+                size={14}
+                className={`transition-all duration-300 ${inCollectionOnly !== "all" ? "text-emerald-500 animate-pulse" : "text-muted-foreground"}`}
+              />
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">En Colección</span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 bg-muted/20 p-1 rounded-xl border border-border/40">
+              <button
+                type="button"
+                onClick={() => toggleInCollectionOnly("all")}
+                className={`rounded-lg py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  inCollectionOnly === "all"
+                    ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-sm"
+                    : "border border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleInCollectionOnly("true")}
+                className={`rounded-lg py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  inCollectionOnly === "true"
+                    ? "bg-emerald-600 text-white shadow-premium border border-emerald-600"
+                    : "border border-transparent text-muted-foreground hover:bg-emerald-500/5 hover:text-emerald-600"
+                }`}
+              >
+                Incluido
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleInCollectionOnly("false")}
+                className={`rounded-lg py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  inCollectionOnly === "false"
+                    ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm"
+                    : "border border-transparent text-muted-foreground hover:bg-rose-500/5 hover:text-rose-600"
+                }`}
+              >
+                No incluido
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Show Expansions Switcher */}
         <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3.5 py-2.5 transition-all duration-200 hover:border-primary/30">

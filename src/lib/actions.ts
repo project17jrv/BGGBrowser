@@ -34,6 +34,7 @@ export interface GetGamesParams {
   showWishlist?: boolean;
   showInteresting?: boolean;
   interestingOnly?: string;
+  inCollectionOnly?: string;
 }
 
 export async function getGames(params: GetGamesParams) {
@@ -79,6 +80,13 @@ export async function getGames(params: GetGamesParams) {
     andConditions.push({
       isInteresting: false,
     });
+  }
+
+  // In-collection only filter
+  if (params.inCollectionOnly === "true") {
+    andConditions.push({ owned: true });
+  } else if (params.inCollectionOnly === "false") {
+    andConditions.push({ owned: false });
   }
 
   // Expansions filter
