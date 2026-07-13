@@ -379,22 +379,22 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
         </div>
 
         {/* Interesting Only Segmented Control */}
-        <div className="flex flex-col gap-1.5 rounded-xl border bg-muted/30 px-3.5 py-3 transition-all duration-200 hover:border-primary/30">
-          <div className="flex items-center gap-2 mb-1.5 select-none">
+        <div className="flex flex-col gap-2 rounded-2xl border bg-card p-4 shadow-sm hover:border-primary/20 transition-all duration-300">
+          <div className="flex items-center gap-2 select-none">
             <Bell 
-              size={15} 
-              className={`transition-colors duration-300 ${showInterestingOnly !== "all" ? "text-purple-500 fill-purple-500/10" : "text-muted-foreground"}`} 
+              size={14} 
+              className={`transition-all duration-300 ${showInterestingOnly !== "all" ? "text-purple-500 animate-pulse" : "text-muted-foreground"}`} 
             />
-            <span className="text-xs font-bold text-foreground">Filtro de Seguimiento</span>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">Filtro de Seguimiento</span>
           </div>
-          <div className="flex rounded-lg border bg-muted/50 p-1 gap-1">
+          <div className="grid grid-cols-3 gap-1 bg-muted/20 p-1 rounded-xl border border-border/40">
             <button
               type="button"
               onClick={() => toggleInterestingOnly("all")}
-              className={`flex-1 rounded-md py-1 text-center text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              className={`rounded-lg py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                 showInterestingOnly === "all"
-                  ? "bg-card text-foreground shadow-sm border border-border/40"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shadow-sm"
+                  : "border border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               }`}
             >
               Todos
@@ -402,24 +402,24 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
             <button
               type="button"
               onClick={() => toggleInterestingOnly("true")}
-              className={`flex-1 rounded-md py-1 text-center text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              className={`rounded-lg py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                 showInterestingOnly === "true"
-                  ? "bg-purple-600 text-white shadow-sm border border-purple-600"
-                  : "text-muted-foreground hover:text-purple-600"
+                  ? "bg-purple-600 text-white shadow-premium border border-purple-600"
+                  : "border border-transparent text-muted-foreground hover:bg-purple-500/5 hover:text-purple-600"
               }`}
             >
-              Siguiendo
+              Seguidos
             </button>
             <button
               type="button"
               onClick={() => toggleInterestingOnly("false")}
-              className={`flex-1 rounded-md py-1 text-center text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+              className={`rounded-lg py-1.5 text-center text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
                 showInterestingOnly === "false"
-                  ? "bg-card text-foreground shadow-sm border border-border/40"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-sm"
+                  : "border border-transparent text-muted-foreground hover:bg-amber-500/5 hover:text-amber-600"
               }`}
             >
-              No Siguiendo
+              No seguidos
             </button>
           </div>
         </div>
