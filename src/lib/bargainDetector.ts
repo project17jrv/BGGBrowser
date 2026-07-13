@@ -42,6 +42,7 @@ function normalizeStr(s: string): string {
 export function isValidWallapopListing(
   listingTitle: string,
   gameNames: string[],   // e.g. [game.name, game.spanishName]
+  customBlacklist: string[] = []
 ): boolean {
   if (!listingTitle) return false;
 
@@ -70,6 +71,15 @@ export function isValidWallapopListing(
 
   // 2. Blacklist filter
   if (WALLAPOP_BLACKLIST.some(kw => normTitle.includes(normalizeStr(kw)))) return false;
+
+  // 3. Custom blacklist filter
+  if (customBlacklist.length > 0) {
+    const matchedCustom = customBlacklist.some(kw => {
+      const normKw = normalizeStr(kw);
+      return normKw.length > 0 && normTitle.includes(normKw);
+    });
+    if (matchedCustom) return false;
+  }
 
   return true;
 }
@@ -238,11 +248,17 @@ export function calculateBargainScore(params: {
  * Evaluates all available candidates (DB-linked items and search cache listings)
  * and retrieves the best bargain result (highest temperature) for a game.
  */
-export function getBestBargainForGame(game: {
-  ludonautaCache?: string | null;
-  wallapopCache?: string | null;
-  linkedWallapop?: MinimalLinkedWallapop[];
-}, discardedLinks: string[] = [], gameNames: string[] = [], forceIncludedLinks: string[] = []): BargainResult | null {
+export function getBestBargainForGame(
+  game: {
+    ludonautaCache?: string | null;
+    wallapopCache?: string | null;
+    linkedWallapop?: MinimalLinkedWallapop[];
+  },
+  discardedLinks: string[] = [],
+  gameNames: string[] = [],
+  forceIncludedLinks: string[] = [],
+  customBlacklist: string[] = []
+): BargainResult | null {
   // Extract reference store prices
   let store_avg: number | null = null;
   let store_min: number | null = null;
@@ -285,7 +301,7 @@ export function getBestBargainForGame(game: {
 
   // Fallback calculations for Wallapop using only valid listings
   const validCacheListings = cacheListings.filter(l => 
-    isValidWallapopListing(l.title || "", gameNames) || forceIncludedLinks.includes(l.webLink)
+    isValidWallapopListing(l.title || "", gameNames, customBlacklist) || forceIncludedLinks.includes(l.webLink)
   );
 
   if (wallapop_avg === null && validCacheListings.length > 0) {
@@ -325,7 +341,7 @@ export function getBestBargainForGame(game: {
     });
   }
 
-  // 2. Add scraped cache listings (excluding duplicate links, discarded, and invalid by name/blacklist unless force-included)
+  // 2. Add scraped cache listings (excluding duplicate links, discarded, and invalid by name/blacklist/custom-blacklist unless force-included)
   cacheListings.forEach((item) => {
     const isForceIncluded = forceIncludedLinks.includes(item.webLink);
     if (
@@ -333,7 +349,7 @@ export function getBestBargainForGame(game: {
       item.webLink &&
       !candidates.some(c => c.webLink === item.webLink) &&
       !discardedLinks.includes(item.webLink) &&
-      (isForceIncluded || gameNames.length === 0 || isValidWallapopListing(item.title || "", gameNames))
+      (isForceIncluded || gameNames.length === 0 || isValidWallapopListing(item.title || "", gameNames, customBlacklist))
     ) {
       candidates.push({
         title: item.title,
@@ -412,15 +428,17 @@ export interface ScoredCandidate {
   autoFiltered?: boolean;
 }
 
-/**
- * Returns ALL scored candidates (linked + cache listings) so the UI can display
- * the full list for manual curation, including discarded ones for reference.
- */
-export function getAllCandidatesForGame(game: {
-  wallapopCache?: string | null;
-  ludonautaCache?: string | null;
-  linkedWallapop?: MinimalLinkedWallapop[];
-}, discardedLinks: string[] = [], gameNames: string[] = [], forceIncludedLinks: string[] = []): ScoredCandidate[] {
+export function getAllCandidatesForGame(
+  game: {
+    wallapopCache?: string | null;
+    ludonautaCache?: string | null;
+    linkedWallapop?: MinimalLinkedWallapop[];
+  },
+  discardedLinks: string[] = [],
+  gameNames: string[] = [],
+  forceIncludedLinks: string[] = [],
+  customBlacklist: string[] = []
+): ScoredCandidate[] {
   // Extract reference store prices (same as getBestBargainForGame)
   let store_avg: number | null = null;
   let store_min: number | null = null;
@@ -459,7 +477,7 @@ export function getAllCandidatesForGame(game: {
 
   // Fallback calculations for Wallapop using only valid listings
   const validCacheListings = cacheListings.filter(l => 
-    isValidWallapopListing(l.title || "", gameNames) || forceIncludedLinks.includes(l.webLink)
+    isValidWallapopListing(l.title || "", gameNames, customBlacklist) || forceIncludedLinks.includes(l.webLink)
   );
 
   if (wallapop_avg === null && validCacheListings.length > 0) {
@@ -489,7 +507,7 @@ export function getAllCandidatesForGame(game: {
     if (item.price > 0 && item.webLink && !seen.has(item.webLink)) {
       seen.add(item.webLink);
       const isForceIncluded = forceIncludedLinks.includes(item.webLink);
-      const autoFiltered = gameNames.length > 0 && !isValidWallapopListing(item.title || "", gameNames) && !isForceIncluded;
+      const autoFiltered = gameNames.length > 0 && !isValidWallapopListing(item.title || "", gameNames, customBlacklist) && !isForceIncluded;
       raw.push({ title: item.title, price: item.price, webLink: item.webLink, imageUrl: item.imageUrl || undefined, location: item.location || undefined, isLinked: false, autoFiltered });
     }
   });

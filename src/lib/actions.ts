@@ -1494,6 +1494,21 @@ export async function removeShopFromWatchlist(gameId: string, offerLink: string)
   }
 }
 
+/** Updates the custom blacklist keywords (comma-separated) for a game. */
+export async function updateCustomBlacklist(gameId: string, customBlacklist: string) {
+  try {
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { customBlacklist: customBlacklist || null }
+    });
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("updateCustomBlacklist failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function registerLotPurchase(updates: { id: string; purchasePrice: number }[]) {
   try {
     const results = [];

@@ -59,6 +59,7 @@ model Game {
   excludedWallapopIds String?           // IDs de Wallapop ignorados (guardados separados por comas)
   shopStockOverrides  String?           // { [link]: "En stock" | "Agotado" }
   shopPriceOverrides  String?           // { [link]: number }
+  customBlacklist     String?           // Lista de palabras a excluir de Wallapop separadas por comas
 
   // --- RELACIONES ---
   categories       Category[]

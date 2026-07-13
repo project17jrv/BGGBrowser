@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { 
   RefreshCw, Store, ExternalLink,
   HelpCircle, Clock, Tag, ArrowUpRight, TrendingUp, AlertCircle,
-  ChevronDown, ChevronUp, Flame, Trash2, X
+  ChevronDown, ChevronUp, Flame, Trash2, X, Save, Ban
 } from "lucide-react";
-import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem } from "@/lib/actions";
+import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem, updateCustomBlacklist } from "@/lib/actions";
 import { PreviewButton } from "./PreviewButton";
 import { getBestBargainForGame, getAllCandidatesForGame } from "@/lib/bargainDetector";
 
@@ -47,6 +47,7 @@ interface WatchlistGame {
   excludedWallapopIds: string | null;
   shopStockOverrides: string | null;
   shopPriceOverrides: string | null;
+  customBlacklist: string | null;
   linkedWallapop: LinkedWallapop[];
 }
 
@@ -162,6 +163,10 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   const [forceIncludedBargainLinks, setForceIncludedBargainLinks] = useState<Map<string, string[]>>(new Map());
   // Per-game toggle for the full candidate list panel
   const [expandedCandidateIds, setExpandedCandidateIds] = useState<Set<string>>(new Set());
+  // Local inputs for custom blacklists to avoid lag
+  const [localBlacklists, setLocalBlacklists] = useState<Map<string, string>>(new Map());
+  const [savingBlacklistIds, setSavingBlacklistIds] = useState<Set<string>>(new Set());
+  const [savedBlacklistIds, setSavedBlacklistIds] = useState<Set<string>>(new Set());
 
   const toggleCandidates = (gameId: string) => {
     setExpandedCandidateIds(prev => {
@@ -248,6 +253,30 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
   const resetForceIncludedBargains = (gameId: string) => {
     setForceIncludedBargainLinks(prev => { const next = new Map(prev); next.delete(gameId); return next; });
+  };
+
+  const handleSaveCustomBlacklist = (gameId: string, value: string) => {
+    if (savingBlacklistIds.has(gameId)) return;
+    setSavingBlacklistIds(prev => { const next = new Set(prev); next.add(gameId); return next; });
+
+    startTransition(async () => {
+      try {
+        const res = await updateCustomBlacklist(gameId, value);
+        if (res.success) {
+          setSavedBlacklistIds(prev => { const next = new Set(prev); next.add(gameId); return next; });
+          setTimeout(() => {
+            setSavedBlacklistIds(prev => { const next = new Set(prev); next.delete(gameId); return next; });
+          }, 1500);
+          router.refresh();
+        } else {
+          alert("Error al guardar palabras excluidas: " + res.error);
+        }
+      } catch {
+        alert("Error de red al guardar palabras excluidas.");
+      } finally {
+        setSavingBlacklistIds(prev => { const next = new Set(prev); next.delete(gameId); return next; });
+      }
+    });
   };
 
   const handleToggleShopStock = (gameId: string, offerLink: string, currentStock: string) => {
@@ -426,11 +455,15 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
                 const _sortedListings = [...listings].sort((a, b) => a.price - b.price);
                 const gameNames = [game.name, game.spanishName].filter(Boolean) as string[];
+                const customBlacklist = game.customBlacklist
+                  ? game.customBlacklist.split(",").map(s => s.trim()).filter(Boolean)
+                  : [];
                 const bargain = getBestBargainForGame(
                   game,
                   discardedBargainLinks.get(game.id) || [],
                   gameNames,
-                  forceIncludedBargainLinks.get(game.id) || []
+                  forceIncludedBargainLinks.get(game.id) || [],
+                  customBlacklist
                 );
 
                 return {
@@ -512,6 +545,13 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                       {game.spanishName && game.name !== game.spanishName && (
                         <span className="text-[10px] text-muted-foreground truncate italic">
                           {game.name}
+                        </span>
+                      )}
+                      {bargain && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold truncate mt-0.5 flex items-center gap-1">
+                          <span className="shrink-0">🏷️</span>
+                          <span className="truncate max-w-[200px] sm:max-w-[300px]" title={bargain.title}>{bargain.title}</span>
+                          <span className="font-extrabold shrink-0">({bargain.offerPrice.toFixed(2)}€)</span>
                         </span>
                       )}
                     </div>
@@ -728,11 +768,15 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                     {/* All Wallapop Candidates Panel */}
                     {(() => {
                       const gameNames = [game.name, game.spanishName].filter(Boolean) as string[];
+                      const customBlacklist = game.customBlacklist
+                        ? game.customBlacklist.split(",").map((s) => s.trim()).filter(Boolean)
+                        : [];
                       const allCandidates = getAllCandidatesForGame(
                         game,
                         discardedBargainLinks.get(game.id) || [],
                         gameNames,
-                        forceIncludedBargainLinks.get(game.id) || []
+                        forceIncludedBargainLinks.get(game.id) || [],
+                        customBlacklist
                       );
                       const isCandidatesExpanded = expandedCandidateIds.has(game.id);
                       const discardedCount = (discardedBargainLinks.get(game.id) || []).length;
@@ -865,6 +909,45 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                         </div>
                       );
                     })()}
+
+                    {/* Custom Blacklist Keywords Input */}
+                    <div className="bg-muted/10 border border-border/50 rounded-2xl p-4 space-y-2 mt-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Ban size={11} className="text-muted-foreground/80" />
+                          Palabras excluidas personalizadas
+                        </label>
+                        {savingBlacklistIds.has(game.id) ? (
+                          <span className="text-[9px] text-primary font-bold animate-pulse">Guardando...</span>
+                        ) : savedBlacklistIds.has(game.id) ? (
+                          <span className="text-[9px] text-emerald-500 font-extrabold flex items-center gap-0.5">
+                            ✓ Guardado
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground/60 font-medium">Presiona Enter o desenfoca para guardar</span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={localBlacklists.has(game.id) ? localBlacklists.get(game.id) : (game.customBlacklist || "")}
+                        onChange={(e) => setLocalBlacklists(prev => new Map(prev).set(game.id, e.target.value))}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          if (val !== (game.customBlacklist || "")) {
+                            handleSaveCustomBlacklist(game.id, val);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = (e.target as HTMLInputElement).value;
+                            handleSaveCustomBlacklist(game.id, val);
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        placeholder="Ej. lote, expansion, promo, kickstarter..."
+                        className="w-full bg-background border border-border/80 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 rounded-xl px-3 py-2 text-xs placeholder:text-muted-foreground/50 outline-none transition-all"
+                      />
+                    </div>
 
                     {/* Selected Items Lists Stack (Wallapop below Shops) */}
                     <div className="flex flex-col gap-4 border-t border-dashed pt-4 flex-grow">
