@@ -8,7 +8,7 @@ import {
   HelpCircle, Clock, Tag, ArrowUpRight, TrendingUp, AlertCircle,
   ChevronDown, ChevronUp, Flame, Trash2, X, Save, Ban
 } from "lucide-react";
-import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem, updateCustomBlacklist } from "@/lib/actions";
+import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem, updateCustomBlacklist, addDiscardedBargainLink, removeDiscardedBargainLink, clearDiscardedBargainLinks } from "@/lib/actions";
 import { PreviewButton } from "./PreviewButton";
 import { getBestBargainForGame, getAllCandidatesForGame } from "@/lib/bargainDetector";
 
@@ -48,6 +48,7 @@ interface WatchlistGame {
   shopStockOverrides: string | null;
   shopPriceOverrides: string | null;
   customBlacklist: string | null;
+  discardedBargainLinks: string | null;
   linkedWallapop: LinkedWallapop[];
 }
 
@@ -158,7 +159,16 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"default" | "chollo">("default");
   // Per-game discarded bargain links (webLink strings to skip in the thermometer)
-  const [discardedBargainLinks, setDiscardedBargainLinks] = useState<Map<string, string[]>>(new Map());
+  const [discardedBargainLinks, setDiscardedBargainLinks] = useState<Map<string, string[]>>(() => {
+    const initialMap = new Map<string, string[]>();
+    games.forEach((g) => {
+      if (g.discardedBargainLinks) {
+        const links = g.discardedBargainLinks.split(",").map((s) => s.trim()).filter(Boolean);
+        initialMap.set(g.id, links);
+      }
+    });
+    return initialMap;
+  });
   // Per-game force-included bargain links (bypasses auto-filtering)
   const [forceIncludedBargainLinks, setForceIncludedBargainLinks] = useState<Map<string, string[]>>(new Map());
   // Per-game toggle for the full candidate list panel
@@ -242,10 +252,31 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
       if (!existing.includes(webLink)) next.set(gameId, [...existing, webLink]);
       return next;
     });
+    startTransition(async () => {
+      await addDiscardedBargainLink(gameId, webLink);
+    });
+  };
+
+  const restoreBargainOffer = (gameId: string, webLink: string, isAutoFiltered: boolean) => {
+    if (isAutoFiltered) {
+      forceIncludeBargainOffer(gameId, webLink);
+    }
+    setDiscardedBargainLinks(prev => {
+      const next = new Map(prev);
+      const existing = next.get(gameId) || [];
+      next.set(gameId, existing.filter(l => l !== webLink));
+      return next;
+    });
+    startTransition(async () => {
+      await removeDiscardedBargainLink(gameId, webLink);
+    });
   };
 
   const resetDiscardedBargains = (gameId: string) => {
     setDiscardedBargainLinks(prev => { const next = new Map(prev); next.delete(gameId); return next; });
+    startTransition(async () => {
+      await clearDiscardedBargainLinks(gameId);
+    });
   };
 
   const forceIncludeBargainOffer = (gameId: string, webLink: string) => {
@@ -970,17 +1001,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                       {isDiscarded ? (
                                         <button
                                           type="button"
-                                          onClick={() => {
-                                            if (cand.autoFiltered) {
-                                              forceIncludeBargainOffer(game.id, cand.webLink);
-                                            }
-                                            setDiscardedBargainLinks(prev => {
-                                              const next = new Map(prev);
-                                              const existing = next.get(game.id) || [];
-                                              next.set(game.id, existing.filter(l => l !== cand.webLink));
-                                              return next;
-                                            });
-                                          }}
+                                          onClick={() => restoreBargainOffer(game.id, cand.webLink, !!cand.autoFiltered)}
                                           className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 border border-transparent hover:border-emerald-500/20 transition-all"
                                           title="Restaurar/Incluir este anuncio"
                                         >

@@ -1509,6 +1509,68 @@ export async function updateCustomBlacklist(gameId: string, customBlacklist: str
   }
 }
 
+/** Persistently adds a webLink to the game's discardedBargainLinks comma-separated string. */
+export async function addDiscardedBargainLink(gameId: string, webLink: string) {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { discardedBargainLinks: true }
+    });
+    const current = game?.discardedBargainLinks || "";
+    const list = current.split(",").map(s => s.trim()).filter(Boolean);
+    if (!list.includes(webLink)) {
+      list.push(webLink);
+      await prisma.game.update({
+        where: { id: gameId },
+        data: { discardedBargainLinks: list.join(",") }
+      });
+    }
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("addDiscardedBargainLink failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Persistently removes a webLink from the game's discardedBargainLinks. */
+export async function removeDiscardedBargainLink(gameId: string, webLink: string) {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { discardedBargainLinks: true }
+    });
+    const current = game?.discardedBargainLinks || "";
+    const list = current.split(",").map(s => s.trim()).filter(Boolean);
+    const updatedList = list.filter(l => l !== webLink);
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { discardedBargainLinks: updatedList.length > 0 ? updatedList.join(",") : null }
+    });
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("removeDiscardedBargainLink failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+/** Clears all discarded bargain links for a game. */
+export async function clearDiscardedBargainLinks(gameId: string) {
+  try {
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { discardedBargainLinks: null }
+    });
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("clearDiscardedBargainLinks failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+
 export async function registerLotPurchase(updates: { id: string; purchasePrice: number }[]) {
   try {
     const results = [];

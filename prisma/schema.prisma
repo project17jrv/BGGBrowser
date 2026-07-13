@@ -60,6 +60,7 @@ model Game {
   shopStockOverrides  String?           // { [link]: "En stock" | "Agotado" }
   shopPriceOverrides  String?           // { [link]: number }
   customBlacklist     String?           // Lista de palabras a excluir de Wallapop separadas por comas
+  discardedBargainLinks String?         // URLs de anuncios de Wallapop descartados del chollo (separados por comas)
 
   // --- RELACIONES ---
   categories       Category[]

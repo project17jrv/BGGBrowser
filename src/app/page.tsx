@@ -82,6 +82,7 @@ export default async function Home({ searchParams }: HomeProps) {
       shopStockOverrides: true,
       shopPriceOverrides: true,
       customBlacklist: true,
+      discardedBargainLinks: true,
       linkedWallapop: {
         select: {
           id: true,
