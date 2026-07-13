@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { 
   RefreshCw, Store, ExternalLink,
   HelpCircle, Clock, Tag, ArrowUpRight, TrendingUp, AlertCircle,
@@ -154,10 +154,25 @@ function PriceSparkline({ history }: { history: PriceHistoryEntry[] }) {
 
 export default function WatchlistTab({ games }: WatchlistTabProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  const sortBy = (searchParams.get("sortBy") as "default" | "chollo") || "default";
+
+  const setSortBy = (val: "default" | "chollo") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (val === "default") {
+      params.delete("sortBy");
+    } else {
+      params.set("sortBy", val);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [sortBy, setSortBy] = useState<"default" | "chollo">("default");
+
   // Per-game discarded bargain links (webLink strings to skip in the thermometer)
   const [discardedBargainLinks, setDiscardedBargainLinks] = useState<Map<string, string[]>>(() => {
     const initialMap = new Map<string, string[]>();

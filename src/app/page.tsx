@@ -178,7 +178,9 @@ export default async function Home({ searchParams }: HomeProps) {
         )}
 
         {activeTab === "watchlist" && (
-          <WatchlistTab games={interestingGames} />
+          <Suspense fallback={<div className="text-center py-12 text-xs text-muted-foreground animate-pulse">Cargando seguimiento de precios...</div>}>
+            <WatchlistTab games={interestingGames} />
+          </Suspense>
         )}
 
         {activeTab === "plays" && (
