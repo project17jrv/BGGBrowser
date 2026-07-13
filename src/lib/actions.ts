@@ -1628,6 +1628,9 @@ export async function refreshInterestingGamePrices(gameId: string) {
       }
     });
 
+    revalidatePath("/");
+    revalidatePath(`/game/${gameId}`);
+
     return { success: true };
   } catch (error) {
     console.error("refreshInterestingGamePrices failed:", error);
@@ -1641,6 +1644,11 @@ export async function updateWallapopItemStatus(itemId: string, status: string) {
       where: { id: itemId },
       data: { status }
     });
+    
+    // Revalidate paths to update watchlist tab and detail view
+    revalidatePath("/");
+    revalidatePath(`/game/${updated.gameId}`);
+    
     return { success: true, item: updated };
   } catch (error) {
     console.error("updateWallapopItemStatus failed:", error);
@@ -1674,6 +1682,10 @@ export async function toggleShopStockOverride(gameId: string, shopLink: string, 
       }
     });
     
+    // Revalidate paths to update watchlist tab and detail view
+    revalidatePath("/");
+    revalidatePath(`/game/${gameId}`);
+    
     return { success: true, game: updated };
   } catch (error) {
     console.error("toggleShopStockOverride failed:", error);
@@ -1706,6 +1718,10 @@ export async function toggleShopPriceOverride(gameId: string, shopLink: string, 
         shopPriceOverrides: JSON.stringify(overrides)
       }
     });
+    
+    // Revalidate paths to update watchlist tab and detail view
+    revalidatePath("/");
+    revalidatePath(`/game/${gameId}`);
     
     return { success: true, game: updated };
   } catch (error) {
