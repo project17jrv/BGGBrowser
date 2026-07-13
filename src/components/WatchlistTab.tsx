@@ -8,7 +8,7 @@ import {
   HelpCircle, Clock, Tag, ArrowUpRight, TrendingUp, AlertCircle,
   ChevronDown, ChevronUp, Flame, Trash2, X, Save, Ban
 } from "lucide-react";
-import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem, updateCustomBlacklist, addDiscardedBargainLink, removeDiscardedBargainLink, clearDiscardedBargainLinks } from "@/lib/actions";
+import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem, updateCustomBlacklist, addDiscardedBargainLink, removeDiscardedBargainLink, clearDiscardedBargainLinks, refreshAllInterestingGamesPrices } from "@/lib/actions";
 import { PreviewButton } from "./PreviewButton";
 import { getBestBargainForGame, getAllCandidatesForGame } from "@/lib/bargainDetector";
 
@@ -410,6 +410,25 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
     });
   };
 
+  const handleRefreshAllPrices = () => {
+    if (updatingId) return;
+    setUpdatingId("all");
+    startTransition(async () => {
+      try {
+        const res = await refreshAllInterestingGamesPrices();
+        if (res.success) {
+          window.location.reload();
+        } else {
+          alert("Error al actualizar todos los precios: " + (res.error || "Error desconocido"));
+        }
+      } catch {
+        alert("Error de conexión al intentar actualizar todos los juegos.");
+      } finally {
+        setUpdatingId(null);
+      }
+    });
+  };
+
   return (
     <div className="space-y-6">
       
@@ -442,31 +461,45 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
             <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">
               Juegos en seguimiento ({games.length})
             </span>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-muted-foreground">Ordenar por:</span>
-              <div className="flex bg-muted/40 p-1 rounded-xl border border-border/40 gap-1 select-none">
-                <button
-                  type="button"
-                  onClick={() => setSortBy("default")}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-                    sortBy === "default"
-                      ? "bg-card text-foreground shadow-sm border border-border/40"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Defecto
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSortBy("chollo")}
-                  className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-1 ${
-                    sortBy === "chollo"
-                      ? "bg-purple-600 text-white shadow-premium border border-purple-600"
-                      : "text-purple-600 dark:text-purple-400 hover:bg-purple-500/5"
-                  }`}
-                >
-                  🔥 Nivel de Chollo
-                </button>
+            <div className="flex items-center gap-4 flex-wrap sm:flex-nowrap">
+              {/* Refresh All button */}
+              <button
+                type="button"
+                disabled={updatingId !== null}
+                onClick={handleRefreshAllPrices}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-muted hover:border-primary/30 hover:bg-primary/5 text-xs font-extrabold text-muted-foreground hover:text-primary transition-all disabled:opacity-50 cursor-pointer shadow-sm"
+                title="Actualizar precios y ofertas de todos los juegos"
+              >
+                <RefreshCw size={11} className={updatingId === "all" ? "animate-spin text-primary" : ""} />
+                {updatingId === "all" ? "Actualizando todos..." : "Actualizar todos"}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-muted-foreground">Ordenar por:</span>
+                <div className="flex bg-muted/40 p-1 rounded-xl border border-border/40 gap-1 select-none">
+                  <button
+                    type="button"
+                    onClick={() => setSortBy("default")}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                      sortBy === "default"
+                        ? "bg-card text-foreground shadow-sm border border-border/40"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Defecto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSortBy("chollo")}
+                    className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer flex items-center gap-1 ${
+                      sortBy === "chollo"
+                        ? "bg-purple-600 text-white shadow-premium border border-purple-600"
+                        : "text-purple-600 dark:text-purple-400 hover:bg-purple-500/5"
+                    }`}
+                  >
+                    🔥 Nivel de Chollo
+                  </button>
+                </div>
               </div>
             </div>
           </div>

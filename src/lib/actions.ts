@@ -1751,6 +1751,31 @@ export async function refreshInterestingGamePrices(gameId: string) {
   }
 }
 
+/** Updates prices and Wallapop listings for all games in the watchlist (status = "interesting"). */
+export async function refreshAllInterestingGamesPrices() {
+  try {
+    const games = await prisma.game.findMany({
+      where: { status: "interesting" },
+      select: { id: true, name: true }
+    });
+
+    for (const game of games) {
+      try {
+        console.log(`[Auto-Refresh All] Starting refresh for game ${game.name} (${game.id})`);
+        await refreshInterestingGamePrices(game.id);
+      } catch (err) {
+        console.error(`[Auto-Refresh All] Failed to refresh game ${game.name}:`, err);
+      }
+    }
+    revalidatePath("/");
+    return { success: true, count: games.length };
+  } catch (error) {
+    console.error("refreshAllInterestingGamesPrices failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+
 export async function updateWallapopItemStatus(itemId: string, status: string) {
   try {
     const updated = await prisma.linkedWallapopItem.update({
