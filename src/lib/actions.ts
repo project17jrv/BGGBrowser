@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { Prisma } from "@prisma/client";
 import { getLudonautaPrices } from "./ludonauta";
 import { revalidatePath } from "next/cache";
+import { isValidWallapopListing } from "./bargainDetector";
 
 export interface GetGamesParams {
   search?: string;
@@ -1613,8 +1614,10 @@ export async function refreshInterestingGamePrices(gameId: string) {
       location: item.location?.city ? `${item.location.city}${item.location.region ? `, ${item.location.region}` : ""}` : "Ubicación desconocida"
     })).filter((l: any) => l.price > 0 && l.webLink);
 
-    // Calculate best and average price
-    const prices = listings.map((l: any) => l.price);
+    // Calculate best and average price based strictly on valid base game listings
+    const gameNames = [game.name, game.spanishName].filter(Boolean) as string[];
+    const validListings = listings.filter((l: any) => isValidWallapopListing(l.title || "", gameNames));
+    const prices = validListings.map((l: any) => l.price);
     const minPrice = prices.length > 0 ? Math.min(...prices) : null;
     const avgPrice = prices.length > 0 ? prices.reduce((a: number, b: number) => a + b, 0) / prices.length : null;
 

@@ -21,12 +21,15 @@ export const WALLAPOP_BLACKLIST = [
   "pintado",
 ];
 
-/** Removes accents and lowercases a string for fuzzy comparison. */
+/** Removes accents, punctuation, and lowercases a string for comparison. */
 function normalizeStr(s: string): string {
   return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s]/g, "") // strip punctuation (like colons, dashes, parentheses)
+    .replace(/\s+/g, " ")    // collapse multiple spaces
+    .trim();
 }
 
 /**
@@ -44,11 +47,25 @@ export function isValidWallapopListing(
 
   const normTitle = normalizeStr(listingTitle);
 
-  // 1. Strict title match — at least one game name must appear literally
-  const matchesName = gameNames.some(n => n && normalizeStr(n).split(/\s+/).every(
-    // All words of the query must appear somewhere in the title (order-independent word match)
-    word => word.length > 2 && normTitle.includes(word)
-  ));
+  // Generate game name candidates (both full name and base name before colon/parenthesis)
+  const candidates: string[] = [];
+  gameNames.forEach(n => {
+    if (!n) return;
+    candidates.push(n);
+    if (n.includes(":")) {
+      candidates.push(n.split(":")[0]);
+    }
+    if (n.includes("(")) {
+      candidates.push(n.split("(")[0]);
+    }
+  });
+
+  // 1. Strict title match — at least one candidate name must appear literally as a substring
+  const matchesName = candidates.some(n => {
+    const normName = normalizeStr(n);
+    // Ensure the normalized query name has at least some meaningful characters to avoid matching empty strings
+    return normName.length > 2 && normTitle.includes(normName);
+  });
   if (!matchesName) return false;
 
   // 2. Blacklist filter
@@ -266,16 +283,20 @@ export function getBestBargainForGame(game: {
     } catch {}
   }
 
-  // Fallback calculations for Wallapop
-  if (wallapop_avg === null && cacheListings.length > 0) {
-    const prices = cacheListings.map(l => l.price);
+  // Fallback calculations for Wallapop using only valid listings
+  const validCacheListings = cacheListings.filter(l => 
+    isValidWallapopListing(l.title || "", gameNames) || forceIncludedLinks.includes(l.webLink)
+  );
+
+  if (wallapop_avg === null && validCacheListings.length > 0) {
+    const prices = validCacheListings.map(l => l.price);
     wallapop_avg = prices.reduce((a, b) => a + b, 0) / prices.length;
   }
   
   if (priceHistory.length > 0) {
     wallapop_min = Math.min(...priceHistory.map(h => h.bestPrice));
-  } else if (cacheListings.length > 0) {
-    wallapop_min = Math.min(...cacheListings.map(l => l.price));
+  } else if (validCacheListings.length > 0) {
+    wallapop_min = Math.min(...validCacheListings.map(l => l.price));
   }
 
   // Gather all unique offer candidates
@@ -436,14 +457,19 @@ export function getAllCandidatesForGame(game: {
     } catch {}
   }
 
-  if (wallapop_avg === null && cacheListings.length > 0) {
-    const prices = cacheListings.map(l => l.price);
+  // Fallback calculations for Wallapop using only valid listings
+  const validCacheListings = cacheListings.filter(l => 
+    isValidWallapopListing(l.title || "", gameNames) || forceIncludedLinks.includes(l.webLink)
+  );
+
+  if (wallapop_avg === null && validCacheListings.length > 0) {
+    const prices = validCacheListings.map(l => l.price);
     wallapop_avg = prices.reduce((a, b) => a + b, 0) / prices.length;
   }
   if (priceHistory.length > 0) {
     wallapop_min = Math.min(...priceHistory.map(h => h.bestPrice));
-  } else if (cacheListings.length > 0) {
-    wallapop_min = Math.min(...cacheListings.map(l => l.price));
+  } else if (validCacheListings.length > 0) {
+    wallapop_min = Math.min(...validCacheListings.map(l => l.price));
   }
 
   // Build combined unique candidate list (linked first, then cache)
