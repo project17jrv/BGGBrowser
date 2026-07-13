@@ -8,6 +8,7 @@ import SearchInput from "@/components/SearchInput";
 import SortAndSize from "@/components/SortAndSize";
 import Pagination from "@/components/Pagination";
 import Onboarding from "@/components/Onboarding";
+import BggImportButton from "@/components/BggImportButton";
 import { Layers } from "lucide-react";
 
 export const metadata = {
@@ -102,7 +103,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
     minRating,
     maxRating,
     minRank,
-    maxRank,
+    maxRank: maxRank ?? 1000,
     minYear,
     maxYear,
     players,
@@ -119,6 +120,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
     showFavoritesOnly,
     ownedOnly: false,
     showExpansions,
+    excludeUnranked: true,
   });
 
   return (
@@ -138,7 +140,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
                 mechanics={metadata.mechanics}
                 minYear={metadata.minYear}
                 maxYear={metadata.maxYear}
-                maxRank={metadata.maxRank}
+                maxRank={Math.min(metadata.maxRank, 1000)}
                 basePath="/ranking"
               />
             </Suspense>
@@ -168,6 +170,11 @@ export default async function RankingPage({ searchParams }: RankingProps) {
               )}
             </div>
 
+            {/* Top Pagination Controls */}
+            <Suspense fallback={<div className="h-10 w-full rounded-2xl border bg-card animate-pulse" />}>
+              <Pagination currentPage={queryResult.currentPage} totalPages={queryResult.totalPages} basePath="/ranking" />
+            </Suspense>
+
             {/* Grid display */}
             {queryResult.games.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -187,6 +194,13 @@ export default async function RankingPage({ searchParams }: RankingProps) {
                 <p className="mt-1.5 max-w-xs text-xs text-muted-foreground leading-relaxed">
                   Prueba a ajustar o limpiar los parámetros de búsqueda o valoración para ver otros títulos.
                 </p>
+
+                <div className="mt-6 flex flex-col items-center border-t border-dashed w-full pt-6 max-w-xs gap-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    ¿No está importado en la base de datos?
+                  </p>
+                  <BggImportButton query={search || ""} />
+                </div>
               </div>
             )}
 

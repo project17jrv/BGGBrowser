@@ -22,9 +22,14 @@ interface AdminSyncProps {
     averageRating: number | null;
   }>;
   defaultUsername: string;
+  lastSyncDates?: {
+    collection: string | null;
+    ranking: string | null;
+    global: string | null;
+  };
 }
 
-export default function AdminSync({ stats, recentGames, defaultUsername }: AdminSyncProps) {
+export default function AdminSync({ stats, recentGames, defaultUsername, lastSyncDates }: AdminSyncProps) {
   const router = useRouter();
   const [username, setUsername] = useState(defaultUsername);
   const [loadingSync, setLoadingSync] = useState(false);
@@ -33,6 +38,18 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
   const [loadingClear, setLoadingClear] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const formatSyncDate = (dateStr?: string | null) => {
+    if (!dateStr) return "Nunca";
+    return new Date(dateStr).toLocaleString("es-ES", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+  };
 
   const handleSync = async (e: React.FormEvent, customUser?: string) => {
     e.preventDefault();
@@ -83,7 +100,7 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
       }
 
       setMessage(
-        "Sincronización del ranking Top 250 iniciada en segundo plano."
+        "Sincronización del ranking Top 1000 iniciada en segundo plano."
       );
       
       // Auto-refresh stats after a few seconds
@@ -121,7 +138,7 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
       setTimeout(() => {
         router.refresh();
         setLoadingForceReSync(false);
-      }, 5000);
+      }, 6000);
 
     } catch (err) {
       console.error(err);
@@ -131,7 +148,7 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
   };
 
   const handleClearDb = async () => {
-    if (!confirm("¿Estás absolutamente seguro de vaciar la base de datos? Esto eliminará todos los juegos y relaciones.")) {
+    if (!window.confirm("¿Seguro que deseas vaciar la base de datos local por completo? Se perderán todos los juegos y estadísticas.")) {
       return;
     }
 
@@ -189,11 +206,11 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-2">
               <button
                 type="submit"
                 disabled={loadingSync || loadingSyncRanking || loadingForceReSync || loadingClear}
-                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-premium transition-all duration-300 hover:bg-primary/95 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-white shadow-premium transition-all duration-300 hover:bg-primary/95 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 cursor-pointer"
               >
                 {loadingSync ? <RefreshCw className="animate-spin" size={14} /> : <Play size={14} />}
                 <span>Sincronizar</span>
@@ -203,30 +220,40 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
                 type="button"
                 onClick={(e) => handleSync(e, "demo_fallback")}
                 disabled={loadingSync || loadingSyncRanking || loadingForceReSync || loadingClear}
-                className="flex items-center justify-center gap-2 rounded-xl border bg-card px-4 py-2 text-xs font-bold text-foreground transition-all duration-300 hover:bg-secondary hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
+                className="flex items-center justify-center gap-2 rounded-xl border bg-card px-4 py-2 text-xs font-bold text-foreground transition-all duration-300 hover:bg-secondary hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 cursor-pointer"
               >
                 <span>Cargar Demo</span>
               </button>
+
+              <span className="text-[10px] text-muted-foreground font-semibold bg-muted/40 px-2.5 py-1 rounded-lg">
+                Última act.: {formatSyncDate(lastSyncDates?.collection)}
+              </span>
             </div>
           </form>
 
           {/* Sync Ranking BGG Section */}
           <div className="border-t border-dashed pt-5 mt-5">
             <h3 className="font-heading text-xs font-bold text-foreground mb-1 uppercase tracking-wider">
-              Sincronizar Ranking Top 250 BGG
+              Sincronizar Ranking Top 1000 BGG
             </h3>
             <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
-              Descarga e importa los detalles de los 250 mejores juegos de mesa del ranking global de BoardGameGeek desde un dataset histórico actualizado.
+              Descarga e importa los detalles de los 1000 mejores juegos de mesa del ranking global de BoardGameGeek desde un dataset histórico actualizado.
             </p>
-            <button
-              type="button"
-              onClick={handleSyncRanking}
-              disabled={loadingSync || loadingSyncRanking || loadingForceReSync || loadingClear}
-              className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-premium transition-all duration-300 hover:bg-indigo-750 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
-            >
-              {loadingSyncRanking ? <RefreshCw className="animate-spin" size={14} /> : <Trophy size={14} />}
-              <span>Sincronizar Top 250 BGG</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleSyncRanking}
+                disabled={loadingSync || loadingSyncRanking || loadingForceReSync || loadingClear}
+                className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-premium transition-all duration-300 hover:bg-indigo-750 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 cursor-pointer"
+              >
+                {loadingSyncRanking ? <RefreshCw className="animate-spin" size={14} /> : <Trophy size={14} />}
+                <span>Sincronizar Top 1000 BGG</span>
+              </button>
+
+              <span className="text-[10px] text-muted-foreground font-semibold bg-muted/40 px-2.5 py-1 rounded-lg">
+                Última act.: {formatSyncDate(lastSyncDates?.ranking)}
+              </span>
+            </div>
           </div>
 
           {/* Force Re-Sync BGG Section */}
@@ -237,15 +264,21 @@ export default function AdminSync({ stats, recentGames, defaultUsername }: Admin
             <p className="text-[11px] text-muted-foreground mb-4 leading-relaxed">
               ¿Se cargaron imágenes falsas de la demo? Utiliza esta opción para consultar la API de BGG y re-descargar todas las portadas e información reales para todos los juegos de la base de datos (se mantendrá tu colección intacta).
             </p>
-            <button
-              type="button"
-              onClick={handleForceReSync}
-              disabled={loadingSync || loadingSyncRanking || loadingForceReSync || loadingClear}
-              className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-premium transition-all duration-300 hover:bg-amber-705 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
-            >
-              {loadingForceReSync ? <RefreshCw className="animate-spin" size={14} /> : <RefreshCw size={14} />}
-              <span>Forzar Actualización desde BGG</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleForceReSync}
+                disabled={loadingSync || loadingSyncRanking || loadingForceReSync || loadingClear}
+                className="flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-premium transition-all duration-300 hover:bg-amber-705 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 cursor-pointer"
+              >
+                {loadingForceReSync ? <RefreshCw className="animate-spin" size={14} /> : <RefreshCw size={14} />}
+                <span>Forzar Actualización desde BGG</span>
+              </button>
+
+              <span className="text-[10px] text-muted-foreground font-semibold bg-muted/40 px-2.5 py-1 rounded-lg">
+                Última act.: {formatSyncDate(lastSyncDates?.global)}
+              </span>
+            </div>
           </div>
 
           {message && (

@@ -266,7 +266,7 @@ export default function TutorialForm({ bggId, gameName, initialYoutubeUrl, initi
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
               placeholder="Ej: https://www.youtube.com/watch?v=..."
-              className="w-full rounded-xl border bg-muted/20 pl-3 pr-8 py-2.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+              className="w-full rounded-xl border bg-card text-foreground pl-3 pr-8 py-2.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary transition-all"
             />
             {youtubeUrl && (
               <button
@@ -293,7 +293,7 @@ export default function TutorialForm({ bggId, gameName, initialYoutubeUrl, initi
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar tutorial..."
-                  className="flex-1 rounded-lg border bg-background px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="flex-1 rounded-lg border bg-card text-foreground px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button
                   id="yt-search-submit"
@@ -382,7 +382,7 @@ export default function TutorialForm({ bggId, gameName, initialYoutubeUrl, initi
               value={pdfUrl}
               onChange={(e) => setPdfUrl(e.target.value)}
               placeholder="Ej: /manuals/123_reglas.pdf o URL externa de Drive/BGG"
-              className="w-full rounded-xl border bg-muted/20 pl-3 pr-8 py-2.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+              className="w-full rounded-xl border bg-card text-foreground pl-3 pr-8 py-2.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary transition-all"
             />
             {pdfUrl && (
               <button

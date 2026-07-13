@@ -1,27 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { Database, Tag, BookOpen } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Database, Tag, BookOpen, Film } from "lucide-react";
 
 interface GameTabsProps {
   ludotecaContent: React.ReactNode;
   preciosContent: React.ReactNode;
   aprendeContent: React.ReactNode;
+  mediaContent: React.ReactNode;
 }
 
-export default function GameTabs({ ludotecaContent, preciosContent, aprendeContent }: GameTabsProps) {
+export default function GameTabs({ ludotecaContent, preciosContent, aprendeContent, mediaContent }: GameTabsProps) {
   // Read initial tab from localStorage if available to persist across page reloads
-  const [activeTab, setActiveTab] = useState<"ludoteca" | "precios" | "aprende">(() => {
+  const [activeTab, setActiveTab] = useState<"ludoteca" | "precios" | "aprende" | "media">("ludoteca");
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("gameActiveTab");
-      if (saved === "ludoteca" || saved === "precios" || saved === "aprende") {
-        return saved;
+      if (saved === "ludoteca" || saved === "precios" || saved === "aprende" || saved === "media") {
+        setActiveTab(saved);
       }
     }
-    return "ludoteca";
-  });
+  }, []);
 
-  const handleTabChange = (tabId: "ludoteca" | "precios" | "aprende") => {
+  const handleTabChange = (tabId: "ludoteca" | "precios" | "aprende" | "media") => {
     setActiveTab(tabId);
     if (typeof window !== "undefined") {
       localStorage.setItem("gameActiveTab", tabId);
@@ -49,6 +51,13 @@ export default function GameTabs({ ludotecaContent, preciosContent, aprendeConte
       icon: BookOpen,
       color: "text-amber-500",
       activeBg: "border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/5",
+    },
+    {
+      id: "media" as const,
+      label: "Media",
+      icon: Film,
+      color: "text-red-500",
+      activeBg: "border-red-500 text-red-600 dark:text-red-400 bg-red-500/5",
     },
   ];
 
@@ -87,7 +96,11 @@ export default function GameTabs({ ludotecaContent, preciosContent, aprendeConte
         {activeTab === "aprende" && (
           <div className="animate-fade-in">{aprendeContent}</div>
         )}
+        {activeTab === "media" && (
+          <div className="animate-fade-in">{mediaContent}</div>
+        )}
       </div>
     </div>
   );
 }
+

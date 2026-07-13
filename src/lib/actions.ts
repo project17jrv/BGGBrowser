@@ -2,6 +2,7 @@
 
 import { prisma } from "./db";
 import { Prisma } from "@prisma/client";
+import { getLudonautaPrices } from "./ludonauta";
 
 export interface GetGamesParams {
   search?: string;
@@ -27,6 +28,10 @@ export interface GetGamesParams {
   showFavoritesOnly?: boolean;
   ownedOnly?: boolean;
   showExpansions?: boolean;
+  excludeUnranked?: boolean;
+  showOwned?: boolean;
+  showWishlist?: boolean;
+  showInteresting?: boolean;
 }
 
 export async function getGames(params: GetGamesParams) {
@@ -38,11 +43,29 @@ export async function getGames(params: GetGamesParams) {
   const where: Prisma.GameWhereInput = { AND: [] };
   const andConditions = where.AND as Prisma.GameWhereInput[];
 
-  // Owned only filter
+  // Owned only filter (includes owned games, BGG wishlist, and local wishlist)
   if (params.ownedOnly) {
-    andConditions.push({
-      owned: true,
-    });
+    const orConditions: Prisma.GameWhereInput[] = [];
+    if (params.showOwned !== false) {
+      orConditions.push({ owned: true });
+    }
+    if (params.showWishlist !== false) {
+      orConditions.push({ status: "wishlist" });
+    }
+    if (params.showInteresting !== false) {
+      orConditions.push({ isInteresting: true });
+    }
+
+    if (orConditions.length > 0) {
+      andConditions.push({
+        OR: orConditions
+      });
+    } else {
+      // Force 0 results if all toggled off
+      andConditions.push({
+        id: "none"
+      });
+    }
   }
 
   // Expansions filter
@@ -88,6 +111,12 @@ export async function getGames(params: GetGamesParams) {
         not: null,
         gte: params.minRank ?? 1,
         lte: params.maxRank ?? 999999,
+      },
+    });
+  } else if (params.excludeUnranked) {
+    andConditions.push({
+      rank: {
+        not: null,
       },
     });
   }
@@ -356,6 +385,8 @@ export async function updateGameFinancials(bggId: number, data: Partial<Game>) {
         spanishName: data.spanishName,
         youtubeUrl: data.youtubeUrl,
         pdfUrl: data.pdfUrl,
+        purchaseCondition: data.purchaseCondition,
+        isInteresting: data.isInteresting !== undefined ? data.isInteresting : undefined,
         // sync owned boolean with status if applicable
         owned: data.status ? (data.status === "in_collection" || data.status === "for_sale") : undefined,
       },
@@ -424,18 +455,20 @@ export async function getFinancialSummary() {
         const sum = activeWallapop.reduce((acc, item) => acc + item.price, 0);
         gameVal = sum / activeWallapop.length;
       } else if (game.ludonautaCache) {
-        // 2. Ludonauta minimum price in stock
+        // 2. Ludonauta average price of in-stock offers
         try {
           const cache = JSON.parse(game.ludonautaCache) as { offers?: { price: number | null; stock: string }[] };
           const inStockOffers = cache.offers?.filter((o) => o.stock === "En stock" && o.price !== null) || [];
           if (inStockOffers.length > 0) {
             const prices = inStockOffers.map((o) => o.price as number);
-            gameVal = Math.min(...prices);
+            const sum = prices.reduce((acc, p) => acc + p, 0);
+            gameVal = sum / prices.length;
           } else if (cache.offers && cache.offers.length > 0) {
-            // Fallback to min of any offer
+            // Fallback to average of any offer
             const allPrices = cache.offers.map((o) => o.price).filter((p): p is number => p !== null);
             if (allPrices.length > 0) {
-              gameVal = Math.min(...allPrices);
+              const sum = allPrices.reduce((acc, p) => acc + p, 0);
+              gameVal = sum / allPrices.length;
             }
           }
         } catch {
@@ -786,6 +819,22 @@ async function translateText(text: string): Promise<string> {
   }
 }
 
+const GENERIC_SELLING_WORDS = new Set([
+  // Selling adjectives
+  'nuevo', 'precintado', 'impecable', 'perfecto', 'excelente', 'ingles', 'english', 'espanol', 'spanish', 'multilingue', 'idioma', 'castellano',
+  'como', 'completamente', 'completo', 'usado', 'barato', 'rebajado', 'regalo', 'original', 'particular', 'vendo', 'vende', 'oportunidad',
+  'estrenar', 'abierto', 'sin', 'jugar', 'jugado', 'veces', 'partida', 'partidas', 'buen', 'estado', 'conservacion', 'caja', 'componentes',
+  'enfundado', 'fundas', 'sleeves', 'cartas', 'fichas', 'dados', 'tablero', 'reglamento', 'instrucciones', 'manual', 'traduccion',
+  // Brands/Publishers
+  'devir', 'edge', 'asmodee', 'masqueoca', 'maldito', 'games', 'sd', 'ludonova', 'zacatrus', 'gmt', 'ravensburger', 'hasbro', 'mattel', 'dias', 'de', 'fuego',
+  // Common terms/adjectives in listings
+  'juego', 'mesa', 'juegos', 'boardgame', 'boardgames', 'board', 'game', 'edition', 'version', 'edicion', 'deluxe', 'collector', 'collectors',
+  'bgg', 'geek', 'kickstarter', 'ks', 'retail', 'promo', 'promos', 'extra', 'extras', 'lote', 'pack', 'unitario', 'individual',
+  // Numbers & connector words
+  '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'de', 'la', 'el', 'en', 'y', 'o', 'a', 'con', 'para', 'por', 'del', 'los', 'las', 'un', 'una',
+  'the', 'of', 'and', 'or', 'in', 'on', 'with', 'for', 'to', 'by', 'at', 'an', 'a', 'is', 'segunda', 'mano', 'solo', 'solo'
+]);
+
 function isWallapopTitleValid(
   gameName: string,
   gameSpanishName: string | null,
@@ -865,6 +914,23 @@ function isWallapopTitleValid(
       }
     }
 
+    // --- EXTRA SPECIFIC WORDS CHECK TO PREVENT MATCHING EXPANSIONS ---
+    const candidateWords = new Set([
+      ...normMain.split(" "),
+      ...normSubtitle.split(" ")
+    ].filter(w => w.length > 0));
+
+    const extraWords = [...listingWords].filter(w => 
+      !candidateWords.has(w) && 
+      !STOP_WORDS.has(w) && 
+      !VERY_GENERIC_WORDS.has(w) && 
+      !GENERIC_SELLING_WORDS.has(w)
+    );
+
+    if (extraWords.length > 0) {
+      return false;
+    }
+
     return true;
   };
 
@@ -930,157 +996,18 @@ export async function autoImportWallapop(gameId: string) {
       );
 
     console.log(`[Wallapop Auto-Import] Starting search for: "${searchQuery}" (Is expansion: ${isGameAnExpansion})`);
-
-
-
-
-    // Rotating user agents to avoid per-UA rate limits
-    const USER_AGENTS = [
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    ];
-
-    // Helper: fetch with random UA from pool
-    const fetchWithUA = (url: string, extraHeaders: Record<string, string> = {}, uaIndex = 0) =>
-      fetch(url, {
-        headers: {
-          "User-Agent": USER_AGENTS[uaIndex % USER_AGENTS.length],
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "es-ES,es;q=0.9",
-          ...extraHeaders,
-        },
-      });
-
-    // Helper: sleep for ms
-    const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-    // Run all search stages and accumulate all unique URLs (don't stop at first result)
-    const allFoundUrls = new Set<string>();
-
-    const extractBraveUrls = (html: string): string[] => {
-      const matches = [...html.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
-      return [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))]; 
-    };
-    const extractYahooUrls = (html: string): string[] => {
-      const ruMatches = [...html.matchAll(/RU=([^/&"]+)/g)];
-      const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
-    };
-    const extractDDGUrls = (html: string): string[] => {
-      const hrefs = [...html.matchAll(/href="([^"]*uddg=[^"]*)"/g)].map(m => m[1]);
-      const decoded = hrefs.map(h => { try { const m = h.match(/uddg=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
-    };
-
-    // Helper: try a query on Brave, add results to set
-    const tryBrave = async (query: string, uaIdx: number) => {
-      try {
-        const url = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
-        const res = await fetchWithUA(url, {}, uaIdx);
-        console.log(`[Wallapop Auto-Import] Brave ("${query.slice(0, 30)}...") -> Status: ${res.status}`);
-        if (res.ok) {
-          const h = await res.text();
-          extractBraveUrls(h).forEach(u => allFoundUrls.add(u));
-        }
-      } catch (err) { console.warn("[Wallapop Auto-Import] Brave error:", err); }
-    };
-
-    // Helper: try a query on Yahoo, add results to set
-    const tryYahoo = async (query: string, uaIdx: number) => {
-      try {
-        const url = `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(query)}`;
-        const res = await fetchWithUA(url, {}, uaIdx);
-        console.log(`[Wallapop Auto-Import] Yahoo ("${query.slice(0, 30)}...") -> Status: ${res.status}`);
-        if (res.ok) {
-          const h = await res.text();
-          extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
-        }
-      } catch (err) { console.warn("[Wallapop Auto-Import] Yahoo error:", err); }
-    };
-
-    // --- SEARCH STAGE 1: Brave (primary query) ---
-    await tryBrave(searchQuery, 0);
-    if (allFoundUrls.size === 0) {
-      await sleep(1000);
-      await tryBrave(searchQuery, 1);
+    // Query the optimized direct Wallapop API search
+    const searchRes = await searchWallapopUrls(game.spanishName || game.name);
+    if (!searchRes.success || !searchRes.urls) {
+      return { success: false, error: searchRes.error || "No se pudieron encontrar anuncios." };
     }
 
-    // --- SEARCH STAGE 2: Yahoo (primary query) - always run to complement Brave ---
-    await tryYahoo(searchQuery, 1);
-    if (allFoundUrls.size === 0) {
-      await sleep(1500);
-      await tryYahoo(searchQuery, 2);
-    }
-
-    // --- SEARCH STAGE 3: Secondary query (no "juego de mesa") on both Brave and Yahoo ---
-    if (searchQuery !== secondaryQuery) {
-      console.log(`[Wallapop Auto-Import] Trying secondary query without suffix: "${secondaryQuery}"`);
-      await sleep(800);
-      await tryBrave(secondaryQuery, 2);
-      await tryYahoo(secondaryQuery, 3);
-    }
-
-    // --- SEARCH STAGE 3b: If game has English name different from Spanish, try English name too ---
-    if (game.name && game.spanishName && game.name !== game.spanishName) {
-      const englishBase = game.name.replace(/[!\?\(\):\-]/g, " ").replace(/\s+/g, " ").trim();
-      if (englishBase !== secondaryQuery) {
-        console.log(`[Wallapop Auto-Import] Trying English name query: "${englishBase}"`);
-        await tryYahoo(englishBase, 0);
-      }
-    }
-
-    // --- SEARCH STAGE 4: DuckDuckGo fallback if still nothing ---
-    if (allFoundUrls.size === 0) {
-      console.log("[Wallapop Auto-Import] No results yet. Trying DuckDuckGo...");
-      try {
-        const ddgUrl = `https://html.duckduckgo.com/html/?q=site:es.wallapop.com/item+${encodeURIComponent(searchQuery)}`;
-        const ddgRes = await fetchWithUA(ddgUrl, {}, 2);
-        console.log(`[Wallapop Auto-Import] DDG -> Status: ${ddgRes.status}`);
-        if (ddgRes.ok) {
-          const ddgHtml = await ddgRes.text();
-          if (!ddgHtml.includes("bots use") && !ddgHtml.includes("captcha") && !ddgHtml.includes("robot")) {
-            extractDDGUrls(ddgHtml).forEach(u => allFoundUrls.add(u));
-            console.log(`[Wallapop Auto-Import] DDG found ${allFoundUrls.size} URLs.`);
-          } else {
-            console.log("[Wallapop Auto-Import] DDG returned a bot-check page.");
-          }
-        }
-      } catch (err) { console.warn("[Wallapop Auto-Import] DuckDuckGo error:", err); }
-    }
-
-    // --- SEARCH STAGE 5: Bing fallback ---
-    if (allFoundUrls.size === 0) {
-      console.log("[Wallapop Auto-Import] DDG empty/blocked. Trying Bing...");
-      try {
-        const bingUrl = `https://www.bing.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(searchQuery)}`;
-        const bingRes = await fetchWithUA(bingUrl, {}, 3);
-        console.log(`[Wallapop Auto-Import] Bing -> Status: ${bingRes.status}`);
-        if (bingRes.ok) {
-          const bingHtml = await bingRes.text();
-          if (!bingHtml.includes("desafío") && !bingHtml.includes("captcha") && !bingHtml.includes("authmode")) {
-            const matches = [...bingHtml.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
-            [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))].forEach(u => allFoundUrls.add(u));
-            console.log(`[Wallapop Auto-Import] Bing found ${allFoundUrls.size} URLs.`);
-          } else {
-            console.log("[Wallapop Auto-Import] Bing returned a bot-check page.");
-          }
-        }
-      } catch (err) { console.warn("[Wallapop Auto-Import] Bing error:", err); }
-    }
-
-    const uniqueUrls = [...allFoundUrls];
-
-    if (uniqueUrls.length === 0) {
-      return { success: false, error: "No se pudo conectar con ningún buscador para encontrar anuncios. Los motores de búsqueda han bloqueado temporalmente las peticiones desde este servidor. Inténtalo de nuevo en unos minutos o vincula el anuncio manualmente." };
-    }
-
-    console.log(`[Wallapop Auto-Import] Found ${uniqueUrls.length} unique Wallapop item links.`);
-
+    const uniqueUrls = searchRes.urls;
     if (uniqueUrls.length === 0) {
       return { success: true, count: 0, message: "No se encontraron anuncios para este juego en Wallapop." };
     }
+
+    console.log(`[Wallapop Auto-Import] Found ${uniqueUrls.length} active Wallapop item links.`);
 
     
     // Optimized exclusions lists
@@ -1259,119 +1186,102 @@ export async function autoImportWallapop(gameId: string) {
  * Searches Wallapop items using Brave, Yahoo (multiple pages and query variations), DuckDuckGo, and Bing in parallel.
  * Collects up to 60 unique Spanish item URLs and returns them.
  */
+function calculateWallapopSimilarity(s1: string, s2: string): number {
+  const clean = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+  const c1 = clean(s1);
+  const c2 = clean(s2);
+  if (c1 === c2) return 1.0;
+
+  const cleanWords = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+  const w1 = cleanWords(s1);
+  const w2 = cleanWords(s2);
+  if (w1.length === 0 || w2.length === 0) return 0.0;
+
+  const getBigrams = (str: string) => {
+    const text = cleanWords(str).join(" ");
+    const bigrams: string[] = [];
+    for (let i = 0; i < text.length - 1; i++) bigrams.push(text.substring(i, i + 2));
+    return bigrams;
+  };
+  const b1 = getBigrams(s1);
+  const b2 = getBigrams(s2);
+  if (b1.length === 0 || b2.length === 0) return 0.0;
+
+  let intersection = 0;
+  const b2Copy = [...b2];
+  for (const bigram of b1) {
+    const idx = b2Copy.indexOf(bigram);
+    if (idx !== -1) {
+      intersection++;
+      b2Copy.splice(idx, 1);
+    }
+  }
+  return (2.0 * intersection) / (b1.length + b2.length);
+}
+
+function calculateWallapopRelevance(url: string, query: string): number {
+  const match = url.match(/\/item\/([^/]+)$/);
+  if (!match) return 0;
+  const parts = match[1].split("-");
+  if (parts.length > 1) parts.pop(); // remove ID
+  const slugText = parts.join(" ");
+
+  const sim = calculateWallapopSimilarity(query, slugText);
+
+  // If all query words are contained in the slug, increase relevance significantly
+  const cleanWords = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+  const queryWords = cleanWords(query);
+  const slugWords = cleanWords(slugText);
+
+  const containsAllWords = queryWords.every((qw) => slugWords.includes(qw));
+  if (containsAllWords) {
+    return sim + 1.0; // Boost exact word match
+  }
+
+  return sim;
+}
+
 export async function searchWallapopUrls(query: string) {
   try {
-    const allFoundUrls = new Set<string>();
-
-    const extractBraveUrls = (html: string): string[] => {
-      const matches = [...html.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
-      return [...new Set(matches.map(m => `https://es.wallapop.com/item/${m[1]}`))]; 
-    };
-    const extractYahooUrls = (html: string): string[] => {
-      const ruMatches = [...html.matchAll(/RU=([^/&"]+)/g)];
-      const decoded = ruMatches.map(m => { try { return decodeURIComponent(m[1]); } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
-    };
-    const extractDDGUrls = (html: string): string[] => {
-      const hrefs = [...html.matchAll(/href="([^"]*uddg=[^"]*)"/g)].map(m => m[1]);
-      const decoded = hrefs.map(h => { try { const m = h.match(/uddg=([^&]+)/); return m ? decodeURIComponent(m[1]) : null; } catch { return null; } }).filter(Boolean) as string[];
-      return [...new Set(decoded.filter(u => u.includes('es.wallapop.com/item/')))];
+    const url = `https://api.wallapop.com/api/v3/search?keywords=${encodeURIComponent(query)}&source=api`;
+    
+    // Headers optimized to query Wallapop API v3 without triggering Cloudflare blocks
+    const headers = {
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "es,es-ES;q=0.9",
+      "Connection": "keep-alive",
+      "DeviceOS": "0",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "X-DeviceOS": "0"
     };
 
-    const USER_AGENTS = [
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-    ];
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      throw new Error(`Wallapop API responded with status ${res.status}`);
+    }
 
-    const fetchWithUA = (url: string, extraHeaders: Record<string, string> = {}, uaIndex = 0) =>
-      fetch(url, {
-        headers: {
-          "User-Agent": USER_AGENTS[uaIndex % USER_AGENTS.length],
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "es-ES,s;q=0.9",
-          ...extraHeaders,
-        },
-      });
-    // Formulate queries with "juego" and "juego de mesa"
-    const cleanQuery = query.toLowerCase();
-    const hasJuego = cleanQuery.includes("juego");
-    const hasMesa = cleanQuery.includes("mesa");
+    const json = await res.json();
+    const items = json.data?.section?.payload?.items || [];
 
-    // Standard negative search terms to exclude accessories/expansions
-    const EXCLUDES = " -inserto -recurso -organizador -expansion -expansión -promo -token -tokens -organizer -componentes -3d -pintado";
+    const urls = items
+      .map((item: any) => {
+        const slug = item.web_slug;
+        return slug ? `https://es.wallapop.com/item/${slug}` : null;
+      })
+      .filter(Boolean) as string[];
 
-    const qBase = `${query}${EXCLUDES}`;
-    const qJuego = hasJuego ? `${query}${EXCLUDES}` : `${query} juego${EXCLUDES}`;
-    const qJuegoMesa = (hasJuego && hasMesa) ? `${query}${EXCLUDES}` : `${query} juego de mesa${EXCLUDES}`;
-    const qMesaJuego = (hasJuego && hasMesa) ? `${query}${EXCLUDES}` : `juego de mesa ${query}${EXCLUDES}`;
+    // Sort URLs by relevance to the query based on the slug
+    const sortedUrls = urls.sort((a, b) => {
+      const relA = calculateWallapopRelevance(a, query);
+      const relB = calculateWallapopRelevance(b, query);
+      return relB - relA; // Descending order
+    });
 
-    // Search targets
-    const braveUrl = `https://search.brave.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}`;
-    const ddgUrl = `https://html.duckduckgo.com/html/?q=site:es.wallapop.com/item+${encodeURIComponent(qBase)}`;
-    const bingUrl = `https://www.bing.com/search?q=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}`;
-
-    // Paginating Yahoo is very stable and doesn't rate limit easily.
-    const yahooUrls = [
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}&b=1`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}&b=11`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuegoMesa)}&b=21`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=1`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=11`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qJuego)}&b=21`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qBase)}&b=1`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qBase)}&b=11`,
-      `https://search.yahoo.com/search?p=site:es.wallapop.com/item+${encodeURIComponent(qMesaJuego)}&b=1`
-    ];
-
-    // Execute engine searches in parallel
-    const enginePromises = [
-      fetchWithUA(braveUrl, {}, 0).then(async res => {
-        if (res.ok) {
-          const h = await res.text();
-          extractBraveUrls(h).forEach(u => allFoundUrls.add(u));
-        }
-      }).catch(() => {}),
-      fetchWithUA(ddgUrl, {}, 1).then(async res => {
-        if (res.ok) {
-          const h = await res.text();
-          if (!h.includes("captcha") && !h.includes("robot")) {
-            extractDDGUrls(h).forEach(u => allFoundUrls.add(u));
-          }
-        }
-      }).catch(() => {}),
-      fetchWithUA(bingUrl, {}, 2).then(async res => {
-        if (res.ok) {
-          const h = await res.text();
-          if (!h.includes("captcha")) {
-            const matches = [...h.matchAll(/https:\/\/es\.wallapop\.com\/item\/([^"'\s>&]+)/g)];
-            matches.map(m => `https://es.wallapop.com/item/${m[1]}`).forEach(u => allFoundUrls.add(u));
-          }
-        }
-      }).catch(() => {})
-    ];
-
-    // Fetch Yahoo sequentially with small delays to ensure 100% success rate
-    const fetchYahooSequentially = async () => {
-      for (let i = 0; i < yahooUrls.length; i++) {
-        try {
-          const res = await fetchWithUA(yahooUrls[i], {}, i);
-          if (res.ok) {
-            const h = await res.text();
-            extractYahooUrls(h).forEach(u => allFoundUrls.add(u));
-          }
-        } catch {}
-        if (i < yahooUrls.length - 1) {
-          await new Promise(r => setTimeout(r, 80)); // 80ms is enough to avoid concurrency detection
-        }
-      }
-    };
-
-    await Promise.all([...enginePromises, fetchYahooSequentially()]);
-
-    const urls = [...allFoundUrls].slice(0, 60); // Collect up to 60 URLs
-    return { success: true, urls };
+    const uniqueUrls = [...new Set(sortedUrls)].slice(0, 60);
+    return { success: true, urls: uniqueUrls };
   } catch (error) {
     console.error("searchWallapopUrls failed:", error);
     return { success: false, error: "Error al buscar las ofertas de Wallapop." };
@@ -1496,6 +1406,298 @@ export async function fetchWallapopDetailsForUrls(urls: string[]) {
   } catch (error) {
     console.error("fetchWallapopDetailsForUrls failed:", error);
     return { success: false, error: "Error al cargar detalles de los anuncios." };
+  }
+}
+
+export async function excludeLudonautaOffer(gameId: string, offerLink: string) {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { ludonautaCache: true }
+    });
+
+    if (!game || !game.ludonautaCache) {
+      return { success: false, error: "Juego o caché no encontrados." };
+    }
+
+    const cache = JSON.parse(game.ludonautaCache);
+    if (cache.offers) {
+      // Filter out the offer with matching link
+      const filteredOffers = (cache.offers as Array<{ link: string }>).filter((o) => o.link !== offerLink);
+      
+      const updatedCache = {
+        ...cache,
+        offers: filteredOffers
+      };
+
+      await prisma.game.update({
+        where: { id: gameId },
+        data: {
+          ludonautaCache: JSON.stringify(updatedCache)
+        }
+      });
+
+      return { success: true, cache: updatedCache };
+    }
+
+    return { success: false, error: "Caché no contiene ofertas." };
+  } catch (error) {
+    console.error("excludeLudonautaOffer failed:", error);
+    return { success: false, error: "Error al descartar la oferta de Ludonauta." };
+  }
+}
+
+export async function registerLotPurchase(updates: { id: string; purchasePrice: number }[]) {
+  try {
+    const results = [];
+    for (const update of updates) {
+      const updated = await prisma.game.update({
+        where: { id: update.id },
+        data: {
+          purchasePrice: update.purchasePrice,
+          status: "in_collection",
+          owned: true
+        }
+      });
+      results.push(updated);
+    }
+    return { success: true, count: results.length };
+  } catch (error) {
+    console.error("registerLotPurchase failed:", error);
+    return { success: false, error: "Error al registrar la compra por lote." };
+  }
+}
+
+async function checkIfWallapopItemIsSold(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "es-ES,es;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+      },
+    });
+    if (!res.ok) {
+      if (res.status === 404 || res.status === 410) {
+        return true;
+      }
+      return false;
+    }
+    const html = await res.text();
+    if (
+      html.includes('"saleStatus":"sold"') ||
+      html.includes('"status":"sold"') ||
+      html.includes('"sale_status":"sold"') ||
+      html.toLowerCase().includes('item-status-sold') ||
+      html.includes('class="sold"') ||
+      html.includes('¡Vendido!') ||
+      html.includes('item_sold')
+    ) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error(`Error checking sold status for ${url}:`, error);
+    return false;
+  }
+}
+
+export async function refreshInterestingGamePrices(gameId: string) {
+  try {
+    // 1. Refresh Ludonauta prices in cache
+    await getLudonautaPrices(gameId, true);
+
+    // 1.5 Refresh sold status for manually linked Wallapop items
+    const linkedItems = await prisma.linkedWallapopItem.findMany({
+      where: { gameId }
+    });
+
+    for (const item of linkedItems) {
+      try {
+        const isSold = await checkIfWallapopItemIsSold(item.webLink);
+        const currentIsSold = item.status === "sold";
+        if (isSold !== currentIsSold) {
+          await prisma.linkedWallapopItem.update({
+            where: { id: item.id },
+            data: { status: isSold ? "sold" : "available" }
+          });
+        }
+      } catch (err) {
+        console.error(`Failed to refresh sold status for linked item ${item.id}:`, err);
+      }
+    }
+
+    // 2. Fetch Wallapop search items
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { name: true, spanishName: true, wallapopCache: true }
+    });
+
+    if (!game) {
+      return { success: false, error: "Juego no encontrado." };
+    }
+
+    const query = game.spanishName || game.name;
+    
+    // We query the v3 API directly inside here to get all metadata for the listings in 1 call
+    const searchUrl = `https://api.wallapop.com/api/v3/search?keywords=${encodeURIComponent(query)}&source=api`;
+    const headers = {
+      "Accept": "application/json, text/plain, */*",
+      "Accept-Language": "es,es-ES;q=0.9",
+      "Connection": "keep-alive",
+      "DeviceOS": "0",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      "X-DeviceOS": "0"
+    };
+
+    const apiRes = await fetch(searchUrl, { headers });
+    if (!apiRes.ok) {
+      throw new Error(`Wallapop API responded with status ${apiRes.status}`);
+    }
+
+    const json = await apiRes.json();
+    const items = json.data?.section?.payload?.items || [];
+
+    const listings = items.map((item: any) => ({
+      id: item.id || Math.random().toString(),
+      title: item.title,
+      price: item.price?.amount || 0,
+      webLink: item.web_slug ? `https://es.wallapop.com/item/${item.web_slug}` : "",
+      imageUrl: item.images?.[0]?.urls?.medium || item.images?.[0]?.urls?.big || "",
+      location: item.location?.city ? `${item.location.city}${item.location.region ? `, ${item.location.region}` : ""}` : "Ubicación desconocida"
+    })).filter((l: any) => l.price > 0 && l.webLink);
+
+    // Calculate best and average price
+    const prices = listings.map((l: any) => l.price);
+    const minPrice = prices.length > 0 ? Math.min(...prices) : null;
+    const avgPrice = prices.length > 0 ? prices.reduce((a: number, b: number) => a + b, 0) / prices.length : null;
+
+    // Load price history from existing cache
+    let priceHistory: Array<{ date: string; bestPrice: number; avgPrice: number | null }> = [];
+    if (game.wallapopCache) {
+      try {
+        const parsed = JSON.parse(game.wallapopCache);
+        if (Array.isArray(parsed.priceHistory)) {
+          priceHistory = parsed.priceHistory;
+        }
+      } catch {}
+    }
+
+    // Add today's entry to history (Safe YYYY-MM-DD in Spain time zone)
+    if (minPrice !== null) {
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Madrid",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      });
+      const today = formatter.format(new Date());
+      const existingIdx = priceHistory.findIndex((h) => h.date === today);
+      if (existingIdx !== -1) {
+        priceHistory[existingIdx] = { date: today, bestPrice: minPrice, avgPrice: avgPrice };
+      } else {
+        priceHistory.push({ date: today, bestPrice: minPrice, avgPrice: avgPrice });
+      }
+      priceHistory = priceHistory.slice(-50); // Keep last 50 entries
+    }
+
+    const updatedWallapopCache = {
+      lastUpdated: new Date().toISOString(),
+      averagePrice: avgPrice,
+      listings,
+      priceHistory
+    };
+
+    await prisma.game.update({
+      where: { id: gameId },
+      data: {
+        wallapopCache: JSON.stringify(updatedWallapopCache)
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("refreshInterestingGamePrices failed:", error);
+    return { success: false, error: "Error al actualizar precios." };
+  }
+}
+
+export async function updateWallapopItemStatus(itemId: string, status: string) {
+  try {
+    const updated = await prisma.linkedWallapopItem.update({
+      where: { id: itemId },
+      data: { status }
+    });
+    return { success: true, item: updated };
+  } catch (error) {
+    console.error("updateWallapopItemStatus failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function toggleShopStockOverride(gameId: string, shopLink: string, newStock: string) {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { shopStockOverrides: true }
+    });
+    if (!game) {
+      return { success: false, error: "Juego no encontrado." };
+    }
+    
+    let overrides: Record<string, string> = {};
+    if (game.shopStockOverrides) {
+      try {
+        overrides = JSON.parse(game.shopStockOverrides);
+      } catch {}
+    }
+    
+    overrides[shopLink] = newStock;
+    
+    const updated = await prisma.game.update({
+      where: { id: gameId },
+      data: {
+        shopStockOverrides: JSON.stringify(overrides)
+      }
+    });
+    
+    return { success: true, game: updated };
+  } catch (error) {
+    console.error("toggleShopStockOverride failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function toggleShopPriceOverride(gameId: string, shopLink: string, newPrice: number) {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { shopPriceOverrides: true }
+    });
+    if (!game) {
+      return { success: false, error: "Juego no encontrado." };
+    }
+    
+    let overrides: Record<string, number> = {};
+    if (game.shopPriceOverrides) {
+      try {
+        overrides = JSON.parse(game.shopPriceOverrides);
+      } catch {}
+    }
+    
+    overrides[shopLink] = newPrice;
+    
+    const updated = await prisma.game.update({
+      where: { id: gameId },
+      data: {
+        shopPriceOverrides: JSON.stringify(overrides)
+      }
+    });
+    
+    return { success: true, game: updated };
+  } catch (error) {
+    console.error("toggleShopPriceOverride failed:", error);
+    return { success: false, error: String(error) };
   }
 }
 

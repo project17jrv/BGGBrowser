@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { deleteWallapopItem, toggleExcludeWallapopId, autoImportWallapop } from "@/lib/actions";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { deleteWallapopItem, toggleExcludeWallapopId, autoImportWallapop, updateWallapopItemStatus } from "@/lib/actions";
 import LinkedWallapopModal from "./LinkedWallapopModal";
 import { Link2, Plus, Trash2, MapPin, Eye, EyeOff, Calculator, Sparkles, Loader2 } from "lucide-react";
+import { PreviewButton } from "./PreviewButton";
 
 interface WallapopItem {
   id: string;
@@ -11,6 +13,7 @@ interface WallapopItem {
   price: number;
   webLink: string;
   location: string | null;
+  status: string;
 }
 
 interface WallapopWidgetProps {
@@ -21,10 +24,26 @@ interface WallapopWidgetProps {
 }
 
 export default function WallapopWidget({ gameId, gameName, initialItems, initialExcluded }: WallapopWidgetProps) {
+  const router = useRouter();
   const [items, setItems] = useState<WallapopItem[]>(initialItems);
   const [excludedIds, setExcludedIds] = useState<string[]>(
     initialExcluded ? initialExcluded.split(",").filter(Boolean) : []
   );
+
+  const handleCycleStatus = useCallback((itemId: string, currentStatus: string) => {
+    const statuses = ["available", "reserved", "sold"];
+    const currentIdx = statuses.indexOf(currentStatus);
+    const nextStatus = statuses[(currentIdx + 1) % statuses.length];
+    
+    updateWallapopItemStatus(itemId, nextStatus).then((res) => {
+      if (res.success) {
+        setItems((prev) =>
+          prev.map((item) => (item.id === itemId ? { ...item, status: nextStatus } : item))
+        );
+        router.refresh();
+      }
+    }).catch(console.error);
+  }, [router]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState<string | null>(null);
@@ -184,18 +203,38 @@ export default function WallapopWidget({ gameId, gameName, initialItems, initial
               <div
                 key={item.id}
                 className={`flex items-center justify-between gap-4 p-2.5 rounded-xl border transition-all text-xs ${
-                  isExcluded ? "bg-muted/30 border-muted opacity-60" : "bg-muted/10"
+                  item.status === "sold" 
+                    ? "bg-red-500/5 border-red-500/20 text-red-500" 
+                    : item.status === "reserved"
+                    ? "bg-orange-500/5 border-orange-500/20 text-orange-500"
+                    : isExcluded 
+                    ? "bg-muted/30 border-muted opacity-60" 
+                    : "bg-muted/10"
                 }`}
               >
                 {/* Details */}
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className={`font-bold text-foreground leading-tight truncate ${isExcluded ? "line-through" : ""}`}>
+                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                  <span className={`font-bold leading-tight truncate ${
+                    item.status === "sold" 
+                      ? "text-red-600 dark:text-red-400" 
+                      : item.status === "reserved"
+                      ? "text-orange-600 dark:text-orange-400"
+                      : isExcluded 
+                      ? "line-through text-muted-foreground" 
+                      : "text-foreground"
+                  }`}>
                     {item.title}
                   </span>
                   
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {/* Price */}
-                    <span className="font-black text-foreground">{item.price.toFixed(2)}€</span>
+                    <span className={`font-black ${
+                      item.status === "sold" 
+                        ? "text-red-500" 
+                        : item.status === "reserved"
+                        ? "text-orange-500"
+                        : "text-foreground"
+                    }`}>{item.price.toFixed(2)}€</span>
                     {/* Location */}
                     {item.location && (
                       <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground truncate max-w-[120px]">
@@ -203,11 +242,36 @@ export default function WallapopWidget({ gameId, gameName, initialItems, initial
                         <span>{item.location}</span>
                       </span>
                     )}
+                    {/* Status Badge (Click to Cycle) */}
+                    <button
+                      type="button"
+                      onClick={() => handleCycleStatus(item.id, item.status || "available")}
+                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider cursor-pointer border select-none transition-all hover:scale-105 ${
+                        item.status === "sold"
+                          ? "bg-red-500/10 border-red-500/20 text-red-500"
+                          : item.status === "reserved"
+                          ? "bg-orange-500/10 border-orange-500/20 text-orange-500"
+                          : "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+                      }`}
+                      title="Haga clic para cambiar estado (Disponible / Reservado / Vendido)"
+                    >
+                      {item.status === "sold" ? "🔴 Vendido" : item.status === "reserved" ? "🟠 Reservado" : "🟢 Disponible"}
+                    </button>
                   </div>
                 </div>
 
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Preview Button */}
+                  <PreviewButton
+                    url={item.webLink}
+                    label="Wallapop"
+                    price={`${item.price.toFixed(2)} €`}
+                    badge={item.status === "sold" ? "Vendido" : item.status === "reserved" ? "Reservado" : item.location || undefined}
+                    badgeVariant={item.status === "sold" ? "red" : item.status === "reserved" ? "orange" : "green"}
+                    accentClass={item.status === "sold" ? "hover:bg-red-500/15 hover:text-red-500" : item.status === "reserved" ? "hover:bg-orange-500/15 hover:text-orange-500" : "hover:bg-green-500/15 hover:text-green-500"}
+                  />
+
                   {/* Exclude Toggle */}
                   <button
                     onClick={() => handleToggleExclude(item.id)}

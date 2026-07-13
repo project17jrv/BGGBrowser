@@ -115,6 +115,22 @@ export default function Pagination({ currentPage, totalPages, basePath }: Pagina
         <ChevronRight size={16} />
       </button>
 
+      {/* Direct Page Selector Dropdown */}
+      <div className="flex items-center gap-1.5 ml-2 border-l pl-3 border-border">
+        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Ir a:</span>
+        <select
+          value={currentPage}
+          onChange={(e) => navigateToPage(Number(e.target.value))}
+          className="rounded-xl border bg-card text-foreground px-2 py-1 text-xs font-bold outline-none transition-all duration-300 hover:border-primary/20 focus:border-primary cursor-pointer shadow-sm"
+        >
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+
     </nav>
   );
 }

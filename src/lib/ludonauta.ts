@@ -11,6 +11,7 @@ export interface LudonautaCacheData {
   lastUpdated: string;
   slug: string;
   offers: LudonautaOffer[];
+  includedLinks?: string[];
 }
 
 function calculateSimilarity(s1: string, s2: string): number {
@@ -70,24 +71,40 @@ export async function getLudonautaPrices(gameId: string, forceRefresh = false): 
     // 1. Fetch game from SQLite
     const game = await prisma.game.findUnique({
       where: { id: gameId },
-      select: { name: true, spanishName: true, isExpansion: true, ludonautaCache: true },
+      select: { name: true, spanishName: true, isExpansion: true, ludonautaCache: true, shopStockOverrides: true, shopPriceOverrides: true },
     });
 
     if (!game) return null;
 
-    // 2. Check cache (24 hours TTL)
+    // 2. Check cache (return instantly if exists and not forcing refresh)
     if (game.ludonautaCache && !forceRefresh) {
       try {
         const cache: LudonautaCacheData = JSON.parse(game.ludonautaCache);
-        const lastUpdated = new Date(cache.lastUpdated);
-        const now = new Date();
-        const diffMs = now.getTime() - lastUpdated.getTime();
-        const diffHours = diffMs / (1000 * 60 * 60);
-
-        if (diffHours < 24) {
-          console.log(`[Ludonauta Cache] Hit for game: "${game.name}"`);
-          return cache;
+        console.log(`[Ludonauta Cache] Hit (no auto-update) for game: "${game.name}"`);
+        
+        // Apply stock overrides
+        if (game.shopStockOverrides) {
+          try {
+            const overrides = JSON.parse(game.shopStockOverrides);
+            cache.offers = cache.offers.map((o) => ({
+              ...o,
+              stock: overrides[o.link] || o.stock
+            }));
+          } catch {}
         }
+
+        // Apply price overrides
+        if (game.shopPriceOverrides) {
+          try {
+            const priceOverrides = JSON.parse(game.shopPriceOverrides);
+            cache.offers = cache.offers.map((o) => ({
+              ...o,
+              price: priceOverrides[o.link] !== undefined ? priceOverrides[o.link] : o.price
+            }));
+          } catch {}
+        }
+
+        return cache;
       } catch (err) {
         console.error("[Ludonauta Cache] Error parsing cache JSON, re-fetching...", err);
       }
@@ -178,10 +195,42 @@ export async function getLudonautaPrices(gameId: string, forceRefresh = false): 
     }
 
     // 4. Update database
+    let existingIncludedLinks: string[] = [];
+    if (game.ludonautaCache) {
+      try {
+        const parsed = JSON.parse(game.ludonautaCache);
+        if (Array.isArray(parsed.includedLinks)) {
+          existingIncludedLinks = parsed.includedLinks;
+        }
+      } catch {}
+    }
+
+    // Apply overrides to fresh scrape
+    let overrides: Record<string, string> = {};
+    if (game.shopStockOverrides) {
+      try {
+        overrides = JSON.parse(game.shopStockOverrides);
+      } catch {}
+    }
+
+    let priceOverrides: Record<string, number> = {};
+    if (game.shopPriceOverrides) {
+      try {
+        priceOverrides = JSON.parse(game.shopPriceOverrides);
+      } catch {}
+    }
+
+    const parsedOffers = offers.map((o) => ({
+      ...o,
+      stock: overrides[o.link] || o.stock,
+      price: priceOverrides[o.link] !== undefined ? priceOverrides[o.link] : o.price
+    }));
+
     const cacheData: LudonautaCacheData = {
       lastUpdated: new Date().toISOString(),
       slug,
-      offers,
+      offers: parsedOffers,
+      includedLinks: existingIncludedLinks,
     };
 
     await prisma.game.update({

@@ -30,6 +30,7 @@ model Game {
   minAge           Int?
   owned            Boolean              @default(false)
   isExpansion      Boolean              @default(false)
+  isInteresting    Boolean              @default(false)
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -44,6 +45,7 @@ model Game {
   played           Boolean              @default(false) // Si se ha estrenado / jugado
   notes            String?              // Notas personales o de desperfectos
   spanishName      String?              // Nombre traducido al español
+  purchaseCondition String?             // "new" | "second_hand" - ¿Comprado nuevo o de segunda mano?
 
   // 2. Multimedia Manual (Tutoriales & PDF)
   youtubeUrl       String?              // URL de videotutorial fijado manualmente
@@ -55,6 +57,8 @@ model Game {
   wallapopCache    String?              // { lastUpdated: DateTime, averagePrice: number, listings: [{ id, title, price, webLink }] }
   musicPlaylist    String?              // { lastUpdated: DateTime, songs: [{ eid: string, title: string }] }
   excludedWallapopIds String?           // IDs de Wallapop ignorados (guardados separados por comas)
+  shopStockOverrides  String?           // { [link]: "En stock" | "Agotado" }
+  shopPriceOverrides  String?           // { [link]: number }
 
   // --- RELACIONES ---
   categories       Category[]
@@ -73,6 +77,7 @@ model Game {
   @@index([owned])
   @@index([status])
   @@index([isExpansion])
+  @@index([isInteresting])
 }
 
 model Category {
@@ -109,6 +114,7 @@ model LinkedWallapopItem {
   webLink   String   // Enlace directo al anuncio en Wallapop
   imageUrl  String?  // Imagen miniatura opcional
   location  String?  // Ubicación o comentarios del anuncio
+  status    String   @default("available") // "available" | "reserved" | "sold"
   dateAdded DateTime @default(now())
 
   @@index([gameId])

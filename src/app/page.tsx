@@ -10,10 +10,13 @@ import SortAndSize from "@/components/SortAndSize";
 import Pagination from "@/components/Pagination";
 import Onboarding from "@/components/Onboarding";
 import PlayLogForm from "@/components/PlayLogForm";
+import BggImportButton from "@/components/BggImportButton";
 import DeletePlayButton from "@/components/DeletePlayButton";
 import ImportBggPlays from "@/components/ImportBggPlays";
 import QuickStatusButton from "@/components/QuickStatusButton";
 import ClubDanteWidget from "@/components/ClubDanteWidget";
+import WallapopLotCalculator from "@/components/WallapopLotCalculator";
+import WatchlistTab from "@/components/WatchlistTab";
 import {
   Layers,
   Wallet,
@@ -65,6 +68,34 @@ export default async function Home({ searchParams }: HomeProps) {
     orderBy: { name: "asc" },
   });
 
+  // Fetch games marked as Interesting for Watchlist
+  const interestingGames = await prisma.game.findMany({
+    where: { isInteresting: true },
+    select: {
+      id: true,
+      name: true,
+      spanishName: true,
+      thumbnailUrl: true,
+      ludonautaCache: true,
+      wallapopCache: true,
+      excludedWallapopIds: true,
+      shopStockOverrides: true,
+      shopPriceOverrides: true,
+      linkedWallapop: {
+        select: {
+          id: true,
+          title: true,
+          price: true,
+          webLink: true,
+          location: true,
+          imageUrl: true,
+          status: true
+        }
+      }
+    },
+    orderBy: { name: "asc" },
+  });
+
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col pb-16">
       <Header />
@@ -92,6 +123,16 @@ export default async function Home({ searchParams }: HomeProps) {
             }`}
           >
             Mercadillo & Finanzas
+          </Link>
+          <Link
+            href="/?tab=watchlist"
+            className={`pb-3 text-xs font-black uppercase tracking-wider transition-all border-b-2 shrink-0 ${
+              activeTab === "watchlist"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Seguimiento de Precios
           </Link>
           <Link
             href="/?tab=plays"
@@ -134,6 +175,10 @@ export default async function Home({ searchParams }: HomeProps) {
           <FinancesTab />
         )}
 
+        {activeTab === "watchlist" && (
+          <WatchlistTab games={interestingGames} />
+        )}
+
         {activeTab === "plays" && (
           <PlaysTab autocompleteGames={autocompleteGames} />
         )}
@@ -174,6 +219,9 @@ interface ShelvesTabParams {
   favorites?: string;
   favIds?: string;
   expansions?: string;
+  showOwned?: string;
+  showWishlist?: string;
+  showInteresting?: string;
 }
 
 // ==========================================
@@ -240,6 +288,9 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
     : undefined;
 
   const showExpansions = resolvedSearchParams.expansions !== "false";
+  const showOwned = resolvedSearchParams.showOwned !== "false";
+  const showWishlist = resolvedSearchParams.showWishlist !== "false";
+  const showInteresting = resolvedSearchParams.showInteresting !== "false";
 
   // Fetch games (ownedOnly = true)
   const queryResult = await getGames({
@@ -266,6 +317,9 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
     showFavoritesOnly,
     ownedOnly: true,
     showExpansions,
+    showOwned,
+    showWishlist,
+    showInteresting,
   });
 
   return (
@@ -305,6 +359,11 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
           )}
         </div>
 
+        {/* Top Pagination Controls */}
+        <Suspense fallback={<div className="h-10 w-full rounded-2xl border bg-card animate-pulse" />}>
+          <Pagination currentPage={queryResult.currentPage} totalPages={queryResult.totalPages} basePath="/" />
+        </Suspense>
+
         {queryResult.games.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {queryResult.games.map((game) => (
@@ -320,6 +379,13 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
             <p className="mt-1.5 max-w-xs text-xs text-muted-foreground leading-relaxed">
               Prueba a ajustar o limpiar los parámetros de búsqueda o valoración para ver otros títulos.
             </p>
+            
+            <div className="mt-6 flex flex-col items-center border-t border-dashed w-full pt-6 max-w-xs gap-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                ¿No está en tu catálogo local?
+              </p>
+              <BggImportButton query={search || ""} />
+            </div>
           </div>
         )}
 
@@ -334,15 +400,105 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
 // ==========================================
 // 2. FINANCES TAB (Mercadillo & Finanzas)
 // ==========================================
+interface LudonautaOffer {
+  price: number | null;
+  stock: string;
+  link: string;
+}
+
+function getLudonautaPrice(ludonautaCache: string | null): number | null {
+  if (!ludonautaCache) return null;
+  try {
+    const cache = JSON.parse(ludonautaCache) as { offers?: LudonautaOffer[]; includedLinks?: string[] };
+    
+    // 1. If there are manually selected links, calculate average using only those
+    if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
+      const activeOffers = cache.offers?.filter((o) => cache.includedLinks?.includes(o.link) && o.price !== null) || [];
+      if (activeOffers.length > 0) {
+        const sum = activeOffers.reduce((acc, o) => acc + (o.price as number), 0);
+        return sum / activeOffers.length;
+      }
+    }
+
+    // 2. Fallback: calculate the average of in-stock offers from the last search
+    const inStockOffers = cache.offers?.filter((o) => o.stock === "En stock" && o.price !== null) || [];
+    if (inStockOffers.length > 0) {
+      const sum = inStockOffers.reduce((acc, o) => acc + (o.price as number), 0);
+      return sum / inStockOffers.length;
+    } else if (cache.offers && cache.offers.length > 0) {
+      const allPrices = cache.offers.map((o) => o.price).filter((p): p is number => p !== null);
+      if (allPrices.length > 0) {
+        const sum = allPrices.reduce((acc, p) => acc + p, 0);
+        return sum / allPrices.length;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+interface WallapopItem {
+  id: string;
+  price: number;
+}
+
+interface FinancialGame {
+  excludedWallapopIds: string | null;
+  linkedWallapop: WallapopItem[];
+  wallapopCache: string | null;
+}
+
+function getWallapopAveragePrice(game: FinancialGame): number | null {
+  const excludedIds = game.excludedWallapopIds ? game.excludedWallapopIds.split(",").filter(Boolean) : [];
+  const activeWallapop = game.linkedWallapop?.filter((item) => !excludedIds.includes(item.id)) || [];
+  if (activeWallapop.length > 0) {
+    const sum = activeWallapop.reduce((acc, item) => acc + item.price, 0);
+    return sum / activeWallapop.length;
+  }
+  
+  if (game.wallapopCache) {
+    try {
+      const cache = JSON.parse(game.wallapopCache);
+      if (cache.averagePrice !== undefined && cache.averagePrice !== null) {
+        return cache.averagePrice as number;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
 async function FinancesTab() {
   const summary = await getFinancialSummary();
 
-  // Fetch games in sale/sold
+  // Fetch all games that have any price or financial information
   const financialGames = await prisma.game.findMany({
     where: {
-      status: { in: ["for_sale", "sold"] },
+      OR: [
+        { status: { in: ["for_sale", "sold"] } },
+        { purchasePrice: { not: null } },
+        { sellPrice: { not: null } },
+        { soldPrice: { not: null } },
+      ],
+    },
+    include: {
+      linkedWallapop: true,
     },
     orderBy: { updatedAt: "desc" },
+  });
+
+  // Fetch all games in database for the lot calculator selection
+  const allGames = await prisma.game.findMany({
+    select: {
+      id: true,
+      name: true,
+      spanishName: true,
+      ludonautaCache: true,
+      thumbnailUrl: true,
+    },
+    orderBy: { name: "asc" },
   });
 
   return (
@@ -352,176 +508,219 @@ async function FinancesTab() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         
         {/* Total Investment */}
-        <div className="rounded-2xl border bg-card p-4.5 shadow-premium flex flex-col justify-between min-h-[110px]">
-          <div className="flex justify-between items-center text-muted-foreground">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Inversión Activa</span>
-            <Wallet size={16} className="text-primary" />
+        <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col items-center justify-center text-center min-h-[120px] transition-all hover:border-primary/20">
+          <div className="rounded-full bg-primary/10 p-2 text-primary mb-2">
+            <Wallet size={18} />
           </div>
-          <div className="mt-2">
-            <span className="text-xl font-heading font-black text-foreground block">
-              {summary.totalInvestment.toFixed(2)}€
-            </span>
-            <span className="text-[9px] text-muted-foreground block mt-0.5">
-              Valor de compra de stock actual
-            </span>
-          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Inversión Activa</span>
+          <span className="text-xl font-heading font-black text-foreground mt-1">
+            {summary.totalInvestment.toFixed(2)}€
+          </span>
+          <span className="text-[8px] text-muted-foreground/80 mt-1 max-w-[120px] leading-tight">
+            Valor de compra de stock actual
+          </span>
         </div>
 
         {/* Estimated Market Value */}
-        <div className="rounded-2xl border bg-card p-4.5 shadow-premium flex flex-col justify-between min-h-[110px]">
-          <div className="flex justify-between items-center text-muted-foreground">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Valor de Mercado</span>
-            <TrendingUp size={16} className="text-emerald-500" />
+        <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col items-center justify-center text-center min-h-[120px] transition-all hover:border-emerald-500/20">
+          <div className="rounded-full bg-emerald-500/10 p-2 text-emerald-500 mb-2">
+            <TrendingUp size={18} />
           </div>
-          <div className="mt-2">
-            <span className="text-xl font-heading font-black text-emerald-500 block">
-              {summary.estimatedMarketValue.toFixed(2)}€
-            </span>
-            <span className="text-[9px] text-muted-foreground block mt-0.5">
-              Suma de precios mínimos/medios
-            </span>
-          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Valor de Mercado</span>
+          <span className="text-xl font-heading font-black text-emerald-500 mt-1">
+            {summary.estimatedMarketValue.toFixed(2)}€
+          </span>
+          <span className="text-[8px] text-muted-foreground/80 mt-1 max-w-[120px] leading-tight">
+            Suma de precios mínimos/medios
+          </span>
         </div>
 
         {/* Total Revenue */}
-        <div className="rounded-2xl border bg-card p-4.5 shadow-premium flex flex-col justify-between min-h-[110px]">
-          <div className="flex justify-between items-center text-muted-foreground">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Ventas / Recuperado</span>
-            <DollarSign size={16} className="text-indigo-500" />
+        <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col items-center justify-center text-center min-h-[120px] transition-all hover:border-indigo-500/20">
+          <div className="rounded-full bg-indigo-500/10 p-2 text-indigo-500 mb-2">
+            <DollarSign size={18} />
           </div>
-          <div className="mt-2">
-            <span className="text-xl font-heading font-black text-indigo-500 block">
-              {summary.totalRevenue.toFixed(2)}€
-            </span>
-            <span className="text-[9px] text-muted-foreground block mt-0.5">
-              Capital recuperado vendido
-            </span>
-          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Ventas / Recuperado</span>
+          <span className="text-xl font-heading font-black text-indigo-500 mt-1">
+            {summary.totalRevenue.toFixed(2)}€
+          </span>
+          <span className="text-[8px] text-muted-foreground/80 mt-1 max-w-[120px] leading-tight">
+            Capital recuperado vendido
+          </span>
         </div>
 
         {/* Net Profit */}
-        <div className="rounded-2xl border bg-card p-4.5 shadow-premium flex flex-col justify-between min-h-[110px]">
-          <div className="flex justify-between items-center text-muted-foreground">
-            <span className="text-[10px] font-bold uppercase tracking-wider">Beneficio Ventas</span>
-            {summary.netProfitOnSales >= 0 ? (
-              <TrendingUp size={16} className="text-emerald-500" />
-            ) : (
-              <TrendingDown size={16} className="text-red-500" />
-            )}
+        <div className={`rounded-2xl border bg-card p-5 shadow-premium flex flex-col items-center justify-center text-center min-h-[120px] transition-all ${
+          summary.netProfitOnSales >= 0 ? "hover:border-emerald-500/20" : "hover:border-red-500/20"
+        }`}>
+          <div className={`rounded-full p-2 mb-2 ${
+            summary.netProfitOnSales >= 0 ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"
+          }`}>
+            {summary.netProfitOnSales >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
           </div>
-          <div className="mt-2">
-            <span className={`text-xl font-heading font-black block ${
-              summary.netProfitOnSales >= 0 ? "text-emerald-500" : "text-red-500"
-            }`}>
-              {summary.netProfitOnSales >= 0 ? "+" : ""}{summary.netProfitOnSales.toFixed(2)}€
-            </span>
-            <span className="text-[9px] text-muted-foreground block mt-0.5">
-              Beneficio real sobre vendidos
-            </span>
-          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Beneficio Ventas</span>
+          <span className={`text-xl font-heading font-black mt-1 ${
+            summary.netProfitOnSales >= 0 ? "text-emerald-500" : "text-red-500"
+          }`}>
+            {summary.netProfitOnSales >= 0 ? "+" : ""}{summary.netProfitOnSales.toFixed(2)}€
+          </span>
+          <span className="text-[8px] text-muted-foreground/80 mt-1 max-w-[120px] leading-tight">
+            Beneficio real sobre vendidos
+          </span>
         </div>
 
         {/* ROI */}
-        <div className="rounded-2xl border bg-card p-4.5 shadow-premium flex flex-col justify-between min-h-[110px] col-span-2 lg:col-span-1">
-          <div className="flex justify-between items-center text-muted-foreground">
-            <span className="text-[10px] font-bold uppercase tracking-wider">ROI Real</span>
-            <Percent size={16} className="text-indigo-500" />
+        <div className="rounded-2xl border bg-card p-5 shadow-premium flex flex-col items-center justify-center text-center min-h-[120px] transition-all hover:border-indigo-500/20 col-span-2 lg:col-span-1">
+          <div className="rounded-full bg-indigo-500/10 p-2 text-indigo-500 mb-2">
+            <Percent size={18} />
           </div>
-          <div className="mt-2">
-            <span className="text-xl font-heading font-black text-foreground block">
-              {summary.roiOnSales.toFixed(1)}%
-            </span>
-            <span className="text-[9px] text-muted-foreground block mt-0.5">
-              Retorno sobre inversión de ventas
-            </span>
-          </div>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">ROI Real</span>
+          <span className="text-xl font-heading font-black text-foreground mt-1">
+            {summary.roiOnSales.toFixed(1)}%
+          </span>
+          <span className="text-[8px] text-muted-foreground/80 mt-1 max-w-[120px] leading-tight">
+            Retorno sobre inversión de ventas
+          </span>
         </div>
 
       </div>
 
       {/* Mercadillo Table */}
       <div className="rounded-2xl border bg-card p-5 shadow-premium">
-        <h3 className="font-heading text-sm font-bold text-foreground mb-4">
-          Catálogo del Mercadillo (En Venta y Vendidos)
-        </h3>
+        <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+          <h3 className="font-heading text-sm font-bold text-foreground">
+            Catálogo del Mercadillo (Juegos con valor contable o de mercado)
+          </h3>
+          <WallapopLotCalculator games={allGames} />
+        </div>
 
         {financialGames.length === 0 ? (
           <div className="text-center py-12 text-xs text-muted-foreground">
-            Ningún juego en venta o marcado como vendido todavía. Modifica las finanzas en la ficha de detalle de un juego.
+            Ningún juego con precios registrados todavía. Modifica las finanzas en la ficha de detalle de cualquier juego.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-xs border-collapse">
               <thead>
-                <tr className="border-b text-muted-foreground font-bold">
+                <tr className="border-b text-muted-foreground font-bold text-[10px] uppercase tracking-wider">
                   <th className="pb-3 w-12" />
-                  <th className="pb-3">Juego</th>
-                  <th className="pb-3">Estado</th>
-                  <th className="pb-3">P. Compra</th>
-                  <th className="pb-3">P. Objetivo / Final</th>
+                  <th className="pb-3 text-left">Juego</th>
+                  <th className="pb-3 text-center">Estado</th>
+                  <th className="pb-3 text-center">Adquisición</th>
+                  <th className="pb-3 text-center">P. Compra</th>
+                  <th className="pb-3 text-center">P. Nuevo</th>
+                  <th className="pb-3 text-center">P. Wallapop</th>
+                  <th className="pb-3 text-center">P. Objetivo</th>
+                  <th className="pb-3 text-center">P. Final</th>
+                  <th className="pb-3 text-center">Retención</th>
                   <th className="pb-3 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {financialGames.map((game) => (
-                  <tr key={game.id} className="hover:bg-muted/10 transition-colors">
-                    {/* Thumbnail */}
-                    <td className="py-3">
-                      {game.thumbnailUrl && (
-                        <img
-                          src={game.thumbnailUrl}
-                          alt={game.name}
-                          className="h-9 w-9 rounded-lg object-cover border bg-muted"
-                        />
-                      )}
-                    </td>
-                    {/* Title */}
-                    <td className="py-3 font-semibold text-foreground">
-                      <div className="flex flex-col gap-0.5">
-                        <span>{game.spanishName || game.name}</span>
-                        {game.spanishName && game.name !== game.spanishName && (
-                          <span className="text-[9px] text-muted-foreground font-normal italic">{game.name}</span>
+                {financialGames.map((game) => {
+                  const ludonautaPrice = getLudonautaPrice(game.ludonautaCache);
+                  const wallapopPrice = getWallapopAveragePrice(game);
+                  return (
+                    <tr key={game.id} className="hover:bg-muted/10 transition-colors">
+                      {/* Thumbnail */}
+                      <td className="py-3 text-center">
+                        {game.thumbnailUrl && (
+                          <img
+                            src={game.thumbnailUrl}
+                            alt={game.name}
+                            className="h-9 w-9 rounded-lg object-cover border bg-muted mx-auto"
+                          />
                         )}
-                      </div>
-                    </td>
-                    {/* Status Badge */}
-                    <td className="py-3">
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
-                        game.status === "for_sale"
-                          ? "bg-orange-500/10 border border-orange-500/20 text-orange-500"
-                          : "bg-red-500/10 border border-red-500/20 text-red-500"
-                      }`}>
-                        {game.status === "for_sale" ? "En Venta" : "Vendido"}
-                      </span>
-                    </td>
-                    {/* Purchase Price */}
-                    <td className="py-3 font-medium text-foreground">
-                      {game.purchasePrice !== null ? `${game.purchasePrice.toFixed(2)}€` : "-"}
-                    </td>
-                    {/* Sell or Sold Price */}
-                    <td className="py-3 font-bold text-foreground">
-                      {game.status === "sold" ? (
-                        <span className="text-indigo-500">
-                          {game.soldPrice !== null ? `${game.soldPrice.toFixed(2)}€` : "-"}
-                        </span>
-                      ) : (
-                        <span className="text-orange-500">
-                          {game.sellPrice !== null ? `${game.sellPrice.toFixed(2)}€` : "-"}
-                        </span>
-                      )}
-                    </td>
-                    {/* Link */}
-                    <td className="py-3 text-right">
-                      <Link
-                        href={`/game/${game.id}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-secondary hover:bg-primary hover:text-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all"
-                      >
-                        <span>Ficha</span>
-                        <ArrowRight size={10} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      {/* Title */}
+                      <td className="py-3 font-semibold text-foreground text-left">
+                        <div className="flex flex-col gap-0.5">
+                          <span>{game.spanishName || game.name}</span>
+                          {game.spanishName && game.name !== game.spanishName && (
+                            <span className="text-[9px] text-muted-foreground font-normal italic">{game.name}</span>
+                          )}
+                        </div>
+                      </td>
+                      {/* Status Badge */}
+                      <td className="py-3 text-center">
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ${
+                            game.status === "in_collection" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-500" :
+                            game.status === "for_sale" ? "bg-orange-500/10 border border-orange-500/20 text-orange-500" :
+                            game.status === "sold" ? "bg-red-500/10 border border-red-500/20 text-red-500" :
+                            game.status === "wishlist" ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-600 dark:text-yellow-400" :
+                            "bg-muted/15 text-muted-foreground"
+                          }`}>
+                            {game.status === "in_collection" ? "Colección" :
+                             game.status === "for_sale" ? "En Venta" :
+                             game.status === "sold" ? "Vendido" :
+                             game.status === "wishlist" ? "Wishlist" : "Otro"}
+                          </span>
+                          {game.isInteresting && (
+                            <span className="inline-block rounded-full bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-purple-600 dark:text-purple-400">
+                              👁️ Seguido
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      {/* Acquisition condition */}
+                      <td className="py-3 text-center">
+                        {game.purchaseCondition === "new" ? (
+                          <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400">🏷️ Nuevo</span>
+                        ) : game.purchaseCondition === "second_hand" ? (
+                          <span className="inline-block rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400">♻️ 2ª Mano</span>
+                        ) : (
+                          <span className="text-muted-foreground text-[10px]">-</span>
+                        )}
+                      </td>
+                      {/* Purchase Price */}
+                      <td className="py-3 text-center font-medium text-foreground">
+                        {game.purchasePrice !== null ? `${game.purchasePrice.toFixed(2)}€` : "-"}
+                      </td>
+                      {/* P. Nuevo */}
+                      <td className="py-3 text-center font-medium text-foreground">
+                        {ludonautaPrice !== null ? `${ludonautaPrice.toFixed(2)}€` : "-"}
+                      </td>
+                      {/* P. Wallapop */}
+                      <td className="py-3 text-center font-medium text-foreground">
+                        {wallapopPrice !== null ? `${wallapopPrice.toFixed(2)}€` : "-"}
+                      </td>
+                      {/* Target Sell Price */}
+                      <td className="py-3 text-center font-medium text-foreground">
+                        {game.sellPrice !== null ? `${game.sellPrice.toFixed(2)}€` : "-"}
+                      </td>
+                      {/* Sold Price */}
+                      <td className="py-3 text-center font-bold text-indigo-500">
+                        {game.soldPrice !== null ? `${game.soldPrice.toFixed(2)}€` : "-"}
+                      </td>
+                      {/* Retention Status */}
+                      <td className="py-3 text-center">
+                        {game.retentionStatus ? (
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${
+                            game.retentionStatus === "untouchable" ? "bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-400" :
+                            game.retentionStatus === "stable" ? "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400" :
+                            "bg-orange-500/10 border-orange-500/20 text-orange-600 dark:text-orange-400"
+                          }`}>
+                            {game.retentionStatus === "untouchable" ? "Intocable" :
+                             game.retentionStatus === "stable" ? "Estable" : "Prescindible"}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </td>
+                      {/* Link */}
+                      <td className="py-3 text-right">
+                        <Link
+                          href={`/game/${game.id}`}
+                          className="inline-flex items-center gap-1 rounded-lg bg-secondary hover:bg-primary hover:text-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wider transition-all"
+                        >
+                          <span>Ficha</span>
+                          <ArrowRight size={10} />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -781,12 +980,14 @@ async function PurgaTab() {
         const cache = JSON.parse(game.ludonautaCache) as { offers?: { price: number | null; stock: string }[] };
         const inStockOffers = cache.offers?.filter((o) => o.stock === "En stock" && o.price !== null) || [];
         if (inStockOffers.length > 0) {
-          const minPrice = Math.min(...inStockOffers.map((o) => o.price as number));
-          if (minPrice > 30) {
+          const prices = inStockOffers.map((o) => o.price as number);
+          const sum = prices.reduce((acc, p) => acc + p, 0);
+          const avgPrice = sum / prices.length;
+          if (avgPrice > 30) {
             tasks.push({
               type: "expendable",
               game,
-              text: `"${game.spanishName || game.name}" es "Prescindible", pero cotiza a ${minPrice.toFixed(2)}€ en Ludonauta.`,
+              text: `"${game.spanishName || game.name}" es "Prescindible", pero cotiza de media a ${avgPrice.toFixed(2)}€ en Ludonauta.`,
               actionLabel: "Poner en venta",
             });
           }

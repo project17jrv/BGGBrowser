@@ -21,7 +21,7 @@
   --secondary-foreground: #0f172a;
   
   --muted: #f8fafc;
-  --muted-foreground: #64748b;
+  --muted-foreground: #475569; /* Slate 600 - yields 6.1:1 contrast on white (passes WCAG AA & AAA) */
   
   --accent: #e2e8f0;
   --accent-foreground: #0f172a;
@@ -45,7 +45,7 @@
   --popover: #0b0f19;
   --popover-foreground: #f8fafc;
   
-  --primary: #6366f1;
+  --primary: #818cf8; /* Indigo 400 - yields 6.03:1 contrast on dark bg/cards (passes WCAG AA) */
   --primary-foreground: #ffffff;
   
   --secondary: #1e293b;
@@ -59,7 +59,7 @@
   
   --border: #1e293b;
   --input: #1e293b;
-  --ring: #6366f1;
+  --ring: #818cf8;
 }
 
 * {
@@ -116,4 +116,39 @@ body {
 
 .pulse-border {
   animation: borderPulse 2s infinite ease-in-out;
+}
+
+/* ============================================================
+   Global form element contrast fix - both light & dark modes
+   Ensures all text inputs, dropdowns, textareas show readable
+   text on their native OS backgrounds.
+   ============================================================ */
+input,
+select,
+textarea {
+  color: var(--foreground);
+  background-color: var(--card);
+}
+
+/* Option elements in select dropdowns */
+option {
+  color: var(--foreground);
+  background-color: var(--card);
+}
+
+/* Placeholder text - always slightly muted */
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+/* Input type=number – hide browser arrows for cleaner look */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }

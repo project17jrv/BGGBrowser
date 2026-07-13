@@ -24,7 +24,9 @@ interface GameCardProps {
     bestPlayers: string | null;
     owned?: boolean;
     isExpansion?: boolean;
+    isInteresting?: boolean;
     spanishName?: string | null;
+    status?: string;
   };
 }
 
@@ -71,6 +73,18 @@ export default function GameCard({ game }: GameCardProps) {
         {game.owned && (
           <div className="absolute left-3 bottom-3 flex items-center gap-1 rounded-full bg-emerald-500/90 text-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-sm border border-emerald-600/30">
             <span>En colección</span>
+          </div>
+        )}
+        {/* Wishlist Tag Overlay */}
+        {game.status === "wishlist" && (
+          <div className="absolute left-3 bottom-3 flex items-center gap-1 rounded-full bg-yellow-500/95 text-black px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-sm border border-yellow-600/30">
+            <span>EN WISHLIST</span>
+          </div>
+        )}
+        {/* Seguido/Tracking Flag Badge */}
+        {game.isInteresting && (
+          <div className={`absolute left-3 flex items-center gap-1 rounded-full bg-purple-500/90 text-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-sm border border-purple-600/30 ${game.rank ? "top-10" : "top-3"}`}>
+            <span>👁️ Seguido</span>
           </div>
         )}
       </Link>

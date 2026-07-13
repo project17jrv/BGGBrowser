@@ -47,6 +47,15 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
   const [showExpansions, setShowExpansions] = useState(
     searchParams.get("expansions") !== "false"
   );
+  const [showOwned, setShowOwned] = useState(
+    searchParams.get("showOwned") !== "false"
+  );
+  const [showWishlist, setShowWishlist] = useState(
+    searchParams.get("showWishlist") !== "false"
+  );
+  const [showInteresting, setShowInteresting] = useState(
+    searchParams.get("showInteresting") !== "false"
+  );
 
   // Synchronize URL changes back to local state
   useEffect(() => {
@@ -67,6 +76,9 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedMechanics(searchParams.get("mechanics")?.split(",").filter(Boolean) || []);
     setShowFavoritesOnly(searchParams.get("favorites") === "true");
     setShowExpansions(searchParams.get("expansions") !== "false");
+    setShowOwned(searchParams.get("showOwned") !== "false");
+    setShowWishlist(searchParams.get("showWishlist") !== "false");
+    setShowInteresting(searchParams.get("showInteresting") !== "false");
   }, [searchParams]);
 
   // Synchronize favorites change custom event
@@ -131,6 +143,24 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.set("expansions", "false");
     } else {
       params.delete("expansions");
+    }
+
+    if (showOwned === false) {
+      params.set("showOwned", "false");
+    } else {
+      params.delete("showOwned");
+    }
+
+    if (showWishlist === false) {
+      params.set("showWishlist", "false");
+    } else {
+      params.delete("showWishlist");
+    }
+
+    if (showInteresting === false) {
+      params.set("showInteresting", "false");
+    } else {
+      params.delete("showInteresting");
     }
 
     const targetPath = basePath || pathname;
@@ -221,6 +251,24 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("expansions");
     }
 
+    if (showOwned === false) {
+      params.set("showOwned", "false");
+    } else {
+      params.delete("showOwned");
+    }
+
+    if (showWishlist === false) {
+      params.set("showWishlist", "false");
+    } else {
+      params.delete("showWishlist");
+    }
+
+    if (showInteresting === false) {
+      params.set("showInteresting", "false");
+    } else {
+      params.delete("showInteresting");
+    }
+
     const targetPath = basePath || pathname;
     router.push(`${targetPath}?${params.toString()}`);
   };
@@ -244,6 +292,9 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedMechanics([]);
     setShowFavoritesOnly(false);
     setShowExpansions(true);
+    setShowOwned(true);
+    setShowWishlist(true);
+    setShowInteresting(true);
 
     const targetPath = basePath || pathname;
     router.push(targetPath);
@@ -253,7 +304,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     search || minRating || maxRating || minRankInput || maxRankInput ||
     minYearInput || maxYearInput || players || bestPlayers || minPlayTime || maxPlayTime ||
     minComplexity || maxComplexity || selectedCategories.length > 0 ||
-    selectedMechanics.length > 0 || showFavoritesOnly || !showExpansions;
+    selectedMechanics.length > 0 || showFavoritesOnly || !showExpansions ||
+    !showOwned || !showWishlist || !showInteresting;
 
   return (
     <div className="flex flex-col gap-6 rounded-2xl border bg-card p-5 shadow-premium transition-all duration-300">
@@ -312,6 +364,78 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
             className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
           />
         </div>
+
+        {/* Collection Filters (only for home page ludoteca view) */}
+        {(basePath === "/" || !basePath) && (
+          <div className="flex flex-col gap-3 rounded-xl border bg-muted/10 p-3.5 border-dashed">
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider block mb-1">
+              Incluir en Ludoteca:
+            </span>
+            
+            {/* En Colección Checkbox */}
+            <div className="flex items-center justify-between">
+              <label htmlFor="ownedToggle" className="text-xs font-bold text-foreground cursor-pointer select-none">
+                En Colección
+              </label>
+              <input
+                id="ownedToggle"
+                type="checkbox"
+                checked={showOwned}
+                onChange={(e) => {
+                  setShowOwned(e.target.checked);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("page", "1");
+                  if (e.target.checked === false) params.set("showOwned", "false");
+                  else params.delete("showOwned");
+                  router.push(`${basePath || pathname}?${params.toString()}`);
+                }}
+                className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+              />
+            </div>
+
+            {/* En Wishlist Checkbox */}
+            <div className="flex items-center justify-between">
+              <label htmlFor="wishlistToggle" className="text-xs font-bold text-foreground cursor-pointer select-none">
+                En Wishlist BGG
+              </label>
+              <input
+                id="wishlistToggle"
+                type="checkbox"
+                checked={showWishlist}
+                onChange={(e) => {
+                  setShowWishlist(e.target.checked);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("page", "1");
+                  if (e.target.checked === false) params.set("showWishlist", "false");
+                  else params.delete("showWishlist");
+                  router.push(`${basePath || pathname}?${params.toString()}`);
+                }}
+                className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+              />
+            </div>
+
+            {/* Interesantes Checkbox */}
+            <div className="flex items-center justify-between">
+              <label htmlFor="interestingToggle" className="text-xs font-bold text-foreground cursor-pointer select-none">
+                Interesantes
+              </label>
+              <input
+                id="interestingToggle"
+                type="checkbox"
+                checked={showInteresting}
+                onChange={(e) => {
+                  setShowInteresting(e.target.checked);
+                  const params = new URLSearchParams(searchParams.toString());
+                  params.set("page", "1");
+                  if (e.target.checked === false) params.set("showInteresting", "false");
+                  else params.delete("showInteresting");
+                  router.push(`${basePath || pathname}?${params.toString()}`);
+                }}
+                className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Rating Range */}
         <div className="flex flex-col gap-1.5">

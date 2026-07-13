@@ -8,7 +8,7 @@ import FinancialForm from "@/components/FinancialForm";
 import PricesWidget from "@/components/PricesWidget";
 import SleevesWidget from "@/components/SleevesWidget";
 import WallapopWidget from "@/components/WallapopWidget";
-import { ChevronLeft, Star, Award, Users, Clock, Flame, Sparkles } from "lucide-react";
+import { ChevronLeft, Star, Award, Users, Clock, Flame, Sparkles, ExternalLink } from "lucide-react";
 import { getMisutMeepleReview } from "@/lib/misutMeeple";
 import MusicWidget from "@/components/MusicWidget";
 import GameTabs from "@/components/GameTabs";
@@ -16,6 +16,8 @@ import TutorialForm from "@/components/TutorialForm";
 import TranslateDescriptionButton from "@/components/TranslateDescriptionButton";
 import ManualViewer from "@/components/ManualViewer";
 import { Video } from "lucide-react";
+import MediaWidget from "@/components/MediaWidget";
+import MisutMeepleBadge from "@/components/MisutMeepleBadge";
 
 function getYouTubeId(url: string | null): string | null {
   if (!url) return null;
@@ -83,8 +85,18 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                 sizes="(max-width: 768px) 100vw, 25vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-102"
               />
+              {game.owned && (
+                <div className="absolute left-3 bottom-3 flex items-center gap-1 rounded-full bg-emerald-500/90 text-white px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-sm border border-emerald-600/30">
+                  <span>En colección</span>
+                </div>
+              )}
+              {game.status === "wishlist" && (
+                <div className="absolute left-3 bottom-3 flex items-center gap-1 rounded-full bg-yellow-500/95 text-black px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-sm border border-yellow-600/30">
+                  <span>EN WISHLIST</span>
+                </div>
+              )}
             </div>
-            <MusicWidget gameId={game.id} />
+            <MusicWidget gameId={game.id} gameName={game.spanishName || game.name} gameImage={game.imageUrl || undefined} />
             <SleevesWidget gameId={game.id} />
           </div>
 
@@ -108,41 +120,42 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                       {game.yearPublished}
                     </span>
                   )}
-                  <span className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[9px] font-black text-indigo-500 uppercase tracking-wider">
-                    BGG ID: {game.bggId}
-                  </span>
-                  <span className={`font-black uppercase tracking-wider text-[9px] rounded-full border px-2 py-0.5 ${
-                    game.status === "in_collection" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
-                    game.status === "for_sale" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
-                    game.status === "sold" ? "bg-red-500/10 text-red-500 border-red-500/20" :
-                    "bg-muted-foreground/10 text-muted-foreground"
-                  }`}>
-                    {game.status === "in_collection" ? "En Colección" :
-                     game.status === "for_sale" ? "En Venta" :
-                     game.status === "sold" ? "Vendido" : "Deseado"}
-                  </span>
+                  <a
+                    href={`https://boardgamegeek.com/boardgame/${game.bggId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 text-[9px] font-black text-indigo-500 uppercase tracking-wider hover:bg-indigo-500 hover:text-white transition-all inline-flex items-center gap-1 cursor-pointer"
+                    title="Ver ficha en BoardGameGeek (para añadir a tu wishlist oficial)"
+                  >
+                    <span>BGG ID: {game.bggId}</span>
+                    <ExternalLink size={9} />
+                  </a>
+                  {(game.owned || game.status === "wishlist" || game.status === "for_sale" || game.status === "sold") && (
+                    <span className={`font-black uppercase tracking-wider text-[9px] rounded-full border px-2 py-0.5 ${
+                      game.status === "in_collection" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" :
+                      game.status === "for_sale" ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                      game.status === "sold" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                      game.status === "wishlist" ? "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20" :
+                      "bg-muted-foreground/10 text-muted-foreground"
+                    }`}>
+                      {game.status === "in_collection" ? "En Colección" :
+                       game.status === "for_sale" ? "En Venta" :
+                       game.status === "sold" ? "Vendido" :
+                       game.status === "wishlist" ? "EN WISHLIST" : "Deseado"}
+                    </span>
+                  )}
+                  {game.isInteresting && (
+                    <span className="font-black uppercase tracking-wider text-[9px] rounded-full border px-2 py-0.5 bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20 inline-flex items-center gap-1">
+                      <span>👁️ En Seguimiento</span>
+                    </span>
+                  )}
                   {game.personalRating && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-wider">
                       <Star size={10} className="fill-amber-500 text-amber-500" />
                       <span>Nota: {game.personalRating}/10</span>
                     </span>
                   )}
-                  {review && (
-                    <a
-                      href={review.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider hover:scale-105 transition-all duration-200"
-                      title={`Leer reseña Misut Meeple: Sello ${review.rating}`}
-                    >
-                      <img
-                        src={`/misut-meeple/sello-${review.rating}.png`}
-                        alt={`Sello ${review.rating}`}
-                        className="h-3 w-3 object-contain shrink-0"
-                      />
-                      <span>Misut Meeple: Sello {review.rating}</span>
-                    </a>
-                  )}
+                  {review && <MisutMeepleBadge review={review} />}
                   {game.isExpansion && (
                     <span className="rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-[9px] font-black text-amber-500 uppercase tracking-wider">
                       Expansión
@@ -310,12 +323,14 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                     spanishName: game.spanishName,
                     youtubeUrl: game.youtubeUrl,
                     pdfUrl: game.pdfUrl,
+                    purchaseCondition: game.purchaseCondition,
+                    isInteresting: game.isInteresting,
                   }} />
                 </div>
               }
               preciosContent={
                 <div className="flex flex-col gap-6 w-full animate-fade-in">
-                  <PricesWidget gameId={game.id} />
+                  <PricesWidget gameId={game.id} gameName={game.spanishName || game.name} />
                   <WallapopWidget
                     gameId={game.id}
                     gameName={game.spanishName || game.name}
@@ -324,7 +339,8 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                       title: item.title,
                       price: item.price,
                       webLink: item.webLink,
-                      location: item.location
+                      location: item.location,
+                      status: item.status
                     }))}
                     initialExcluded={game.excludedWallapopIds || ""}
                   />
@@ -358,11 +374,14 @@ export default async function GameDetailPage({ params }: GameDetailProps) {
                     );
                   })()}
 
-                  <TutorialForm bggId={game.bggId} gameName={game.spanishName || game.name} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
-
                   {/* Rules PDF manual (if exists) */}
                   {game.pdfUrl && <ManualViewer pdfUrl={game.pdfUrl} />}
+
+                  <TutorialForm bggId={game.bggId} gameName={game.spanishName || game.name} initialYoutubeUrl={game.youtubeUrl || ""} initialPdfUrl={game.pdfUrl || ""} />
                 </div>
+              }
+              mediaContent={
+                <MediaWidget bggId={game.bggId} gameName={game.spanishName || game.name} />
               }
             />
           </div>

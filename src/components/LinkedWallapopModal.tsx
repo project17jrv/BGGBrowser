@@ -319,8 +319,28 @@ export default function LinkedWallapopModal({ gameId, gameName, isOpen, onClose,
                     </div>
                   </div>
                 ) : searchError ? (
-                  <div className="text-center py-12 text-xs text-red-500 font-medium my-auto">
-                    {searchError}
+                  <div className="flex flex-col items-center justify-center py-8 text-center gap-3 my-auto max-w-sm mx-auto animate-in fade-in duration-300">
+                    <div className="rounded-xl bg-orange-500/10 p-3 text-orange-500">
+                      <Search size={18} />
+                    </div>
+                    <p className="text-xs font-bold text-foreground">
+                      No se encontraron anuncios indexados
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Dado que Wallapop bloquea las búsquedas automáticas directas, la aplicación consulta motores de búsqueda (Brave, Bing, Yahoo) los cuales tardan días o semanas en indexar anuncios nuevos.
+                    </p>
+                    <div className="bg-muted/15 border rounded-xl p-3 text-left w-full mt-2">
+                      <p className="text-[10px] font-bold text-foreground mb-1 uppercase tracking-wider flex items-center gap-1">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-orange-500" />
+                        ¿Cómo vincularlo a mano?
+                      </p>
+                      <ol className="text-[10px] text-muted-foreground list-decimal list-inside space-y-1 leading-normal">
+                        <li>Busca el juego en la web o app de Wallapop en tu móvil/PC.</li>
+                        <li>Copia el enlace de cualquier anuncio activo.</li>
+                        <li>Ve a la pestaña <b>&quot;Vincular Manualmente&quot;</b> arriba.</li>
+                        <li>Pega la URL e impórtala en 1 segundo.</li>
+                      </ol>
+                    </div>
                   </div>
                 ) : allUrls.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-center text-xs text-muted-foreground gap-1.5 my-auto">

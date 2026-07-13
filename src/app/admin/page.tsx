@@ -9,8 +9,19 @@ export const metadata = {
 };
 
 export default async function AdminPage() {
-  // Query all database stats in parallel for optimal load times
-  const [gamesCount, ownedGamesCount, categoriesCount, mechanicsCount, designersCount, publishersCount, recentGames] = await Promise.all([
+  // Query all database stats and last update dates in parallel
+  const [
+    gamesCount,
+    ownedGamesCount,
+    categoriesCount,
+    mechanicsCount,
+    designersCount,
+    publishersCount,
+    recentGames,
+    lastCollectionSync,
+    lastRankingSync,
+    lastGlobalSync
+  ] = await Promise.all([
     prisma.game.count(),
     prisma.game.count({ where: { owned: true } }),
     prisma.category.count(),
@@ -28,6 +39,25 @@ export default async function AdminPage() {
         averageRating: true,
       },
     }),
+    prisma.game.findFirst({
+      where: {
+        OR: [
+          { owned: true },
+          { status: "wishlist" }
+        ]
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true }
+    }),
+    prisma.game.findFirst({
+      where: { rank: { not: null } },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true }
+    }),
+    prisma.game.findFirst({
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true }
+    })
   ]);
 
   const stats = {
@@ -40,6 +70,12 @@ export default async function AdminPage() {
   };
 
   const defaultUsername = process.env.BGG_USERNAME || "boardgamegeek";
+
+  const lastSyncDates = {
+    collection: lastCollectionSync?.updatedAt?.toISOString() || null,
+    ranking: lastRankingSync?.updatedAt?.toISOString() || null,
+    global: lastGlobalSync?.updatedAt?.toISOString() || null,
+  };
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col pb-12">
@@ -65,6 +101,7 @@ export default async function AdminPage() {
           stats={stats}
           recentGames={recentGames}
           defaultUsername={defaultUsername}
+          lastSyncDates={lastSyncDates}
         />
 
       </div>

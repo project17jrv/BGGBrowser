@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   },
 };
 
+import GlobalMusicPlayer from "@/components/GlobalMusicPlayer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -47,6 +49,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        <GlobalMusicPlayer />
       </body>
     </html>
   );

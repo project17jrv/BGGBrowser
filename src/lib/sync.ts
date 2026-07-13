@@ -620,3 +620,34 @@ export async function runForceReSyncAll(): Promise<{ success: boolean; count: nu
     throw error;
   }
 }
+
+// Import a single game by BGG ID
+export async function importSingleBggGame(bggId: number): Promise<{ success: boolean; gameId?: string; error?: string }> {
+  try {
+    console.log(`[Import Single BGG] Starting import for BGG ID: ${bggId}`);
+    
+    // 1. Fetch details from BGG
+    const details = await fetchGameDetails([bggId]);
+    if (!details || details.length === 0) {
+      throw new Error(`BGG returned no details for ID: ${bggId}`);
+    }
+
+    // 2. Sync to DB
+    await syncGamesToDb(details, { markAsOwned: false });
+
+    // 3. Find the game in the DB to get its UUID
+    const game = await prisma.game.findUnique({
+      where: { bggId },
+      select: { id: true }
+    });
+
+    if (!game) {
+      throw new Error(`Failed to find imported game in database for BGG ID: ${bggId}`);
+    }
+
+    return { success: true, gameId: game.id };
+  } catch (error) {
+    console.error(`[Import Single BGG] Error importing game ${bggId}:`, error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
