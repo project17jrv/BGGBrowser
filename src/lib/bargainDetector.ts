@@ -8,6 +8,55 @@ export interface MinimalLinkedWallapop {
   status: string;
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Strict listing filter — mirrors the BuscarPreciosBGG validation algorithm
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Accessory keywords that indicate the listing is NOT the base game. */
+export const WALLAPOP_BLACKLIST = [
+  "inserto", "organizador", "organizadores", "organizer", "insert",
+  "tokens", "meeple", "tapete", "fundas", "pegatinas", "dados",
+  "impresion 3d", "impresión 3d",
+  "caja vacia", "caja vacía", "solo caja",
+  "pintado",
+];
+
+/** Removes accents and lowercases a string for fuzzy comparison. */
+function normalizeStr(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * Returns true if the listing should be KEPT (passes both checks):
+ *  1. Title must contain at least one variant of the game name (literal match, normalized).
+ *  2. Title must NOT contain any blacklisted accessory keyword.
+ *
+ * Linked items (manually curated by the user) always bypass this filter.
+ */
+export function isValidWallapopListing(
+  listingTitle: string,
+  gameNames: string[],   // e.g. [game.name, game.spanishName]
+): boolean {
+  if (!listingTitle) return false;
+
+  const normTitle = normalizeStr(listingTitle);
+
+  // 1. Strict title match — at least one game name must appear literally
+  const matchesName = gameNames.some(n => n && normalizeStr(n).split(/\s+/).every(
+    // All words of the query must appear somewhere in the title (order-independent word match)
+    word => word.length > 2 && normTitle.includes(word)
+  ));
+  if (!matchesName) return false;
+
+  // 2. Blacklist filter
+  if (WALLAPOP_BLACKLIST.some(kw => normTitle.includes(normalizeStr(kw)))) return false;
+
+  return true;
+}
+
 export const BARGAIN_WEIGHTS = {
   wallapopAvg: 0.35, // 35% Wallapop medio
   wallapopMin: 0.30, // 30% Wallapop mínimo histórico
@@ -176,7 +225,7 @@ export function getBestBargainForGame(game: {
   ludonautaCache?: string | null;
   wallapopCache?: string | null;
   linkedWallapop?: MinimalLinkedWallapop[];
-}, discardedLinks: string[] = []): BargainResult | null {
+}, discardedLinks: string[] = [], gameNames: string[] = [], forceIncludedLinks: string[] = []): BargainResult | null {
   // Extract reference store prices
   let store_avg: number | null = null;
   let store_min: number | null = null;
@@ -255,9 +304,16 @@ export function getBestBargainForGame(game: {
     });
   }
 
-  // 2. Add scraped cache listings (excluding duplicate links and discarded)
+  // 2. Add scraped cache listings (excluding duplicate links, discarded, and invalid by name/blacklist unless force-included)
   cacheListings.forEach((item) => {
-    if (item.price > 0 && item.webLink && !candidates.some(c => c.webLink === item.webLink) && !discardedLinks.includes(item.webLink)) {
+    const isForceIncluded = forceIncludedLinks.includes(item.webLink);
+    if (
+      item.price > 0 &&
+      item.webLink &&
+      !candidates.some(c => c.webLink === item.webLink) &&
+      !discardedLinks.includes(item.webLink) &&
+      (isForceIncluded || gameNames.length === 0 || isValidWallapopListing(item.title || "", gameNames))
+    ) {
       candidates.push({
         title: item.title,
         price: item.price,
@@ -332,6 +388,7 @@ export interface ScoredCandidate {
   isLinked: boolean;
   temperature: number;
   label: string;
+  autoFiltered?: boolean;
 }
 
 /**
@@ -342,7 +399,7 @@ export function getAllCandidatesForGame(game: {
   wallapopCache?: string | null;
   ludonautaCache?: string | null;
   linkedWallapop?: MinimalLinkedWallapop[];
-}, discardedLinks: string[] = []): ScoredCandidate[] {
+}, discardedLinks: string[] = [], gameNames: string[] = [], forceIncludedLinks: string[] = []): ScoredCandidate[] {
   // Extract reference store prices (same as getBestBargainForGame)
   let store_avg: number | null = null;
   let store_min: number | null = null;
@@ -390,7 +447,7 @@ export function getAllCandidatesForGame(game: {
   }
 
   // Build combined unique candidate list (linked first, then cache)
-  const raw: { title: string; price: number; webLink: string; imageUrl?: string; location?: string; isLinked: boolean }[] = [];
+  const raw: { title: string; price: number; webLink: string; imageUrl?: string; location?: string; isLinked: boolean; autoFiltered?: boolean }[] = [];
   const seen = new Set<string>();
 
   if (game.linkedWallapop) {
@@ -405,16 +462,19 @@ export function getAllCandidatesForGame(game: {
   cacheListings.forEach(item => {
     if (item.price > 0 && item.webLink && !seen.has(item.webLink)) {
       seen.add(item.webLink);
-      raw.push({ title: item.title, price: item.price, webLink: item.webLink, imageUrl: item.imageUrl || undefined, location: item.location || undefined, isLinked: false });
+      const isForceIncluded = forceIncludedLinks.includes(item.webLink);
+      const autoFiltered = gameNames.length > 0 && !isValidWallapopListing(item.title || "", gameNames) && !isForceIncluded;
+      raw.push({ title: item.title, price: item.price, webLink: item.webLink, imageUrl: item.imageUrl || undefined, location: item.location || undefined, isLinked: false, autoFiltered });
     }
   });
 
   // Score each candidate and sort by price ascending
   return raw
     .map(cand => {
-      const discarded = discardedLinks.includes(cand.webLink);
+      const isForceIncluded = forceIncludedLinks.includes(cand.webLink);
+      const discarded = discardedLinks.includes(cand.webLink) || (cand.autoFiltered && !isForceIncluded);
       const { temperature, label } = discarded
-        ? { temperature: -1, label: "Descartado" }
+        ? { temperature: -1, label: cand.autoFiltered ? "Filtro Automático" : "Descartado" }
         : calculateBargainScore({ store_avg, store_min, wallapop_avg, wallapop_min, offer_price: cand.price });
       return { ...cand, temperature, label };
     })

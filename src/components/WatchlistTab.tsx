@@ -158,6 +158,8 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   const [sortBy, setSortBy] = useState<"default" | "chollo">("default");
   // Per-game discarded bargain links (webLink strings to skip in the thermometer)
   const [discardedBargainLinks, setDiscardedBargainLinks] = useState<Map<string, string[]>>(new Map());
+  // Per-game force-included bargain links (bypasses auto-filtering)
+  const [forceIncludedBargainLinks, setForceIncludedBargainLinks] = useState<Map<string, string[]>>(new Map());
   // Per-game toggle for the full candidate list panel
   const [expandedCandidateIds, setExpandedCandidateIds] = useState<Set<string>>(new Set());
 
@@ -224,6 +226,28 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
   const resetDiscardedBargains = (gameId: string) => {
     setDiscardedBargainLinks(prev => { const next = new Map(prev); next.delete(gameId); return next; });
+  };
+
+  const forceIncludeBargainOffer = (gameId: string, webLink: string) => {
+    setForceIncludedBargainLinks(prev => {
+      const next = new Map(prev);
+      const existing = next.get(gameId) || [];
+      if (!existing.includes(webLink)) next.set(gameId, [...existing, webLink]);
+      return next;
+    });
+  };
+
+  const removeForceIncludeBargainOffer = (gameId: string, webLink: string) => {
+    setForceIncludedBargainLinks(prev => {
+      const next = new Map(prev);
+      const existing = next.get(gameId) || [];
+      next.set(gameId, existing.filter(l => l !== webLink));
+      return next;
+    });
+  };
+
+  const resetForceIncludedBargains = (gameId: string) => {
+    setForceIncludedBargainLinks(prev => { const next = new Map(prev); next.delete(gameId); return next; });
   };
 
   const handleToggleShopStock = (gameId: string, offerLink: string, currentStock: string) => {
@@ -401,7 +425,13 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                 }
 
                 const _sortedListings = [...listings].sort((a, b) => a.price - b.price);
-                const bargain = getBestBargainForGame(game, discardedBargainLinks.get(game.id) || []);
+                const gameNames = [game.name, game.spanishName].filter(Boolean) as string[];
+                const bargain = getBestBargainForGame(
+                  game,
+                  discardedBargainLinks.get(game.id) || [],
+                  gameNames,
+                  forceIncludedBargainLinks.get(game.id) || []
+                );
 
                 return {
                   game,
@@ -697,7 +727,13 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
                     {/* All Wallapop Candidates Panel */}
                     {(() => {
-                      const allCandidates = getAllCandidatesForGame(game, discardedBargainLinks.get(game.id) || []);
+                      const gameNames = [game.name, game.spanishName].filter(Boolean) as string[];
+                      const allCandidates = getAllCandidatesForGame(
+                        game,
+                        discardedBargainLinks.get(game.id) || [],
+                        gameNames,
+                        forceIncludedBargainLinks.get(game.id) || []
+                      );
                       const isCandidatesExpanded = expandedCandidateIds.has(game.id);
                       const discardedCount = (discardedBargainLinks.get(game.id) || []).length;
                       if (allCandidates.length === 0) return null;
@@ -722,7 +758,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                           {isCandidatesExpanded && (
                             <div className="divide-y divide-border/30">
                               {allCandidates.map((cand, ci) => {
-                                const isDiscarded = (discardedBargainLinks.get(game.id) || []).includes(cand.webLink);
+                                const isDiscarded = (discardedBargainLinks.get(game.id) || []).includes(cand.webLink) || (cand.autoFiltered);
                                 const isBest = !isDiscarded && bargain?.webLink === cand.webLink;
                                 const tempColor = isDiscarded
                                   ? "text-muted-foreground/50"
@@ -740,11 +776,11 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                 return (
                                   <div
                                     key={ci}
-                                    className={`flex items-center gap-2 px-3 py-2 text-xs transition-all ${isDiscarded ? "opacity-40" : ""} ${isBest ? "bg-primary/5" : "hover:bg-muted/10"}`}
+                                    className={`flex items-center gap-2 px-3 py-2 text-xs transition-all ${isDiscarded ? "opacity-55" : ""} ${isBest ? "bg-primary/5" : "hover:bg-muted/10"}`}
                                   >
                                     {/* Best marker */}
-                                    <span className="text-[10px] w-3 shrink-0 text-center">
-                                      {isBest ? "👑" : isDiscarded ? "✗" : ""}
+                                    <span className="text-[10px] w-3 shrink-0 text-center text-amber-500">
+                                      {isBest ? "👑" : cand.autoFiltered ? "⚙️" : isDiscarded ? "✗" : ""}
                                     </span>
 
                                     {/* Title + location */}
@@ -752,12 +788,15 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                       <span className={`block font-semibold truncate ${isDiscarded ? "line-through text-muted-foreground" : "text-foreground"}`}>
                                         {cand.title}
                                       </span>
-                                      <div className="flex items-center gap-2 mt-0.5">
+                                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
                                         {cand.location && (
                                           <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">📍 {cand.location}</span>
                                         )}
                                         {cand.isLinked && (
                                           <span className="text-[9px] text-indigo-500 font-bold">🔗 Seleccionado</span>
+                                        )}
+                                        {cand.autoFiltered && (
+                                          <span className="text-[8px] text-amber-600 dark:text-amber-400 font-bold bg-amber-500/10 px-1 py-0.2 rounded border border-amber-500/20">Auto-filtrado (Accesorios/No base)</span>
                                         )}
                                       </div>
                                     </div>
@@ -789,6 +828,9 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                         <button
                                           type="button"
                                           onClick={() => {
+                                            if (cand.autoFiltered) {
+                                              forceIncludeBargainOffer(game.id, cand.webLink);
+                                            }
                                             setDiscardedBargainLinks(prev => {
                                               const next = new Map(prev);
                                               const existing = next.get(game.id) || [];
@@ -797,14 +839,17 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                                             });
                                           }}
                                           className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 border border-transparent hover:border-emerald-500/20 transition-all"
-                                          title="Restaurar este anuncio"
+                                          title="Restaurar/Incluir este anuncio"
                                         >
                                           <ArrowUpRight size={9} />
                                         </button>
                                       ) : (
                                         <button
                                           type="button"
-                                          onClick={() => discardBargainOffer(game.id, cand.webLink)}
+                                          onClick={() => {
+                                            removeForceIncludeBargainOffer(game.id, cand.webLink);
+                                            discardBargainOffer(game.id, cand.webLink);
+                                          }}
                                           className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 border border-transparent hover:border-red-500/20 transition-all"
                                           title="Descartar este anuncio del cálculo"
                                         >
