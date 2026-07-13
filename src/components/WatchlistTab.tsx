@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
@@ -167,6 +167,21 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   const [localBlacklists, setLocalBlacklists] = useState<Map<string, string>>(new Map());
   const [savingBlacklistIds, setSavingBlacklistIds] = useState<Set<string>>(new Set());
   const [savedBlacklistIds, setSavedBlacklistIds] = useState<Set<string>>(new Set());
+  
+  // Custom context menu for adding selected words to custom blacklist
+  interface ContextMenuState {
+    gameId: string;
+    word: string;
+    x: number;
+    y: number;
+  }
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+
+  useEffect(() => {
+    const handleClose = () => setContextMenu(null);
+    window.addEventListener("click", handleClose);
+    return () => window.removeEventListener("click", handleClose);
+  }, []);
 
   const toggleCandidates = (gameId: string) => {
     setExpandedCandidateIds(prev => {
@@ -277,6 +292,27 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
         setSavingBlacklistIds(prev => { const next = new Set(prev); next.delete(gameId); return next; });
       }
     });
+  };
+
+  const handleAddWordToBlacklist = (gameId: string, word: string) => {
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+
+    const current = localBlacklists.has(gameId)
+      ? localBlacklists.get(gameId)
+      : (game.customBlacklist || "");
+
+    const words = current ? current.split(",").map(s => s.trim()).filter(Boolean) : [];
+    const normalizedWord = word.trim().toLowerCase();
+
+    if (normalizedWord && !words.map(w => w.toLowerCase()).includes(normalizedWord)) {
+      words.push(word.trim());
+    }
+
+    const newVal = words.join(", ");
+    setLocalBlacklists(prev => new Map(prev).set(gameId, newVal));
+    handleSaveCustomBlacklist(gameId, newVal);
+    setContextMenu(null);
   };
 
   const handleToggleShopStock = (gameId: string, offerLink: string, currentStock: string) => {
@@ -765,6 +801,45 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                       )}
                     </div>
 
+                    {/* Custom Blacklist Keywords Input */}
+                    <div className="bg-muted/10 border border-border/50 rounded-2xl p-4 space-y-2 mt-1 mb-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Ban size={11} className="text-muted-foreground/80" />
+                          Palabras excluidas personalizadas
+                        </label>
+                        {savingBlacklistIds.has(game.id) ? (
+                          <span className="text-[9px] text-primary font-bold animate-pulse">Guardando...</span>
+                        ) : savedBlacklistIds.has(game.id) ? (
+                          <span className="text-[9px] text-emerald-500 font-extrabold flex items-center gap-0.5">
+                            ✓ Guardado
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-muted-foreground/60 font-medium">Presiona Enter o desenfoca para guardar</span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={localBlacklists.has(game.id) ? localBlacklists.get(game.id) : (game.customBlacklist || "")}
+                        onChange={(e) => setLocalBlacklists(prev => new Map(prev).set(game.id, e.target.value))}
+                        onBlur={(e) => {
+                          const val = e.target.value;
+                          if (val !== (game.customBlacklist || "")) {
+                            handleSaveCustomBlacklist(game.id, val);
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            const val = (e.target as HTMLInputElement).value;
+                            handleSaveCustomBlacklist(game.id, val);
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                        placeholder="Ej. lote, expansion, promo, kickstarter..."
+                        className="w-full bg-background border border-border/80 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 rounded-xl px-3 py-2 text-xs placeholder:text-muted-foreground/50 outline-none transition-all"
+                      />
+                    </div>
+
                     {/* All Wallapop Candidates Panel */}
                     {(() => {
                       const gameNames = [game.name, game.spanishName].filter(Boolean) as string[];
@@ -829,7 +904,22 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
                                     {/* Title + location */}
                                     <div className="flex-1 min-w-0">
-                                      <span className={`block font-semibold truncate ${isDiscarded ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                                      <span 
+                                        className={`block font-semibold truncate cursor-context-menu ${isDiscarded ? "line-through text-muted-foreground" : "text-foreground"}`}
+                                        onContextMenu={(e) => {
+                                          const selection = window.getSelection()?.toString().trim();
+                                          if (selection) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setContextMenu({
+                                              gameId: game.id,
+                                              word: selection,
+                                              x: e.clientX,
+                                              y: e.clientY
+                                            });
+                                          }
+                                        }}
+                                      >
                                         {cand.title}
                                       </span>
                                       <div className="flex flex-wrap items-center gap-2 mt-0.5">
@@ -909,45 +999,6 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                         </div>
                       );
                     })()}
-
-                    {/* Custom Blacklist Keywords Input */}
-                    <div className="bg-muted/10 border border-border/50 rounded-2xl p-4 space-y-2 mt-1">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                          <Ban size={11} className="text-muted-foreground/80" />
-                          Palabras excluidas personalizadas
-                        </label>
-                        {savingBlacklistIds.has(game.id) ? (
-                          <span className="text-[9px] text-primary font-bold animate-pulse">Guardando...</span>
-                        ) : savedBlacklistIds.has(game.id) ? (
-                          <span className="text-[9px] text-emerald-500 font-extrabold flex items-center gap-0.5">
-                            ✓ Guardado
-                          </span>
-                        ) : (
-                          <span className="text-[9px] text-muted-foreground/60 font-medium">Presiona Enter o desenfoca para guardar</span>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={localBlacklists.has(game.id) ? localBlacklists.get(game.id) : (game.customBlacklist || "")}
-                        onChange={(e) => setLocalBlacklists(prev => new Map(prev).set(game.id, e.target.value))}
-                        onBlur={(e) => {
-                          const val = e.target.value;
-                          if (val !== (game.customBlacklist || "")) {
-                            handleSaveCustomBlacklist(game.id, val);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            const val = (e.target as HTMLInputElement).value;
-                            handleSaveCustomBlacklist(game.id, val);
-                            (e.target as HTMLInputElement).blur();
-                          }
-                        }}
-                        placeholder="Ej. lote, expansion, promo, kickstarter..."
-                        className="w-full bg-background border border-border/80 focus:border-primary/50 focus:ring-1 focus:ring-primary/20 rounded-xl px-3 py-2 text-xs placeholder:text-muted-foreground/50 outline-none transition-all"
-                      />
-                    </div>
 
                     {/* Selected Items Lists Stack (Wallapop below Shops) */}
                     <div className="flex flex-col gap-4 border-t border-dashed pt-4 flex-grow">
@@ -1124,6 +1175,21 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
       </div>
       )}
 
+      {contextMenu && (
+        <div 
+          className="fixed z-50 bg-popover border text-popover-foreground rounded-xl shadow-premium p-1.5 min-w-[180px] text-xs flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleAddWordToBlacklist(contextMenu.gameId, contextMenu.word)}
+            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-primary hover:text-primary-foreground font-bold transition-colors flex items-center gap-1.5 cursor-pointer group"
+          >
+            <Ban size={12} className="text-muted-foreground group-hover:text-primary-foreground" />
+            Excluir &quot;{contextMenu.word}&quot;
+          </button>
+        </div>
+      )}
     </div>
   );
 }
