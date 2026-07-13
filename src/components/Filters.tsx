@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
-import { SlidersHorizontal, RotateCcw, Heart, Calendar, Users, Clock, Award, Star } from "lucide-react";
+import { SlidersHorizontal, RotateCcw, Heart, Calendar, Users, Clock, Award, Star, Eye } from "lucide-react";
 
 interface FiltersProps {
   categories: string[];
@@ -44,6 +44,9 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(
     searchParams.get("favorites") === "true"
   );
+  const [showInterestingOnly, setShowInterestingOnly] = useState(
+    searchParams.get("interestingOnly") === "true"
+  );
   const [showExpansions, setShowExpansions] = useState(
     searchParams.get("expansions") !== "false"
   );
@@ -75,6 +78,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedCategories(searchParams.get("categories")?.split(",").filter(Boolean) || []);
     setSelectedMechanics(searchParams.get("mechanics")?.split(",").filter(Boolean) || []);
     setShowFavoritesOnly(searchParams.get("favorites") === "true");
+    setShowInterestingOnly(searchParams.get("interestingOnly") === "true");
     setShowExpansions(searchParams.get("expansions") !== "false");
     setShowOwned(searchParams.get("showOwned") !== "false");
     setShowWishlist(searchParams.get("showWishlist") !== "false");
@@ -139,6 +143,12 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("favIds");
     }
 
+    if (showInterestingOnly) {
+      params.set("interestingOnly", "true");
+    } else {
+      params.delete("interestingOnly");
+    }
+
     if (showExpansions === false) {
       params.set("expansions", "false");
     } else {
@@ -197,6 +207,20 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     applyFiltersInternal(selectedCategories, selectedMechanics, checked);
   };
 
+  // Toggle Interesting Only
+  const toggleInterestingOnly = (checked: boolean) => {
+    setShowInterestingOnly(checked);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("page", "1");
+    if (checked) {
+      params.set("interestingOnly", "true");
+    } else {
+      params.delete("interestingOnly");
+    }
+    const targetPath = basePath || pathname;
+    router.push(`${targetPath}?${params.toString()}`);
+  };
+
   // Toggle Expansions
   const toggleExpansions = (checked: boolean) => {
     setShowExpansions(checked);
@@ -245,6 +269,12 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("favIds");
     }
 
+    if (showInterestingOnly) {
+      params.set("interestingOnly", "true");
+    } else {
+      params.delete("interestingOnly");
+    }
+
     if (showExpansions === false) {
       params.set("expansions", "false");
     } else {
@@ -291,6 +321,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedCategories([]);
     setSelectedMechanics([]);
     setShowFavoritesOnly(false);
+    setShowInterestingOnly(false);
     setShowExpansions(true);
     setShowOwned(true);
     setShowWishlist(true);
@@ -304,7 +335,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     search || minRating || maxRating || minRankInput || maxRankInput ||
     minYearInput || maxYearInput || players || bestPlayers || minPlayTime || maxPlayTime ||
     minComplexity || maxComplexity || selectedCategories.length > 0 ||
-    selectedMechanics.length > 0 || showFavoritesOnly || !showExpansions ||
+    selectedMechanics.length > 0 || showFavoritesOnly || showInterestingOnly || !showExpansions ||
     !showOwned || !showWishlist || !showInteresting;
 
   return (
@@ -343,6 +374,24 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
             type="checkbox"
             checked={showFavoritesOnly}
             onChange={(e) => toggleFavoritesOnly(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
+          />
+        </div>
+
+        {/* Interesting Only Switcher */}
+        <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3.5 py-2.5 transition-all duration-200 hover:border-primary/30">
+          <label htmlFor="interestingOnlyToggle" className="flex items-center gap-2 cursor-pointer select-none">
+            <Eye 
+              size={15} 
+              className={`transition-colors duration-300 ${showInterestingOnly ? "text-purple-500 fill-purple-500/10" : "text-muted-foreground"}`} 
+            />
+            <span className="text-xs font-bold text-foreground">Solo Siguiendo</span>
+          </label>
+          <input
+            id="interestingOnlyToggle"
+            type="checkbox"
+            checked={showInterestingOnly}
+            onChange={(e) => toggleInterestingOnly(e.target.checked)}
             className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
           />
         </div>
@@ -417,7 +466,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
             {/* Interesantes Checkbox */}
             <div className="flex items-center justify-between">
               <label htmlFor="interestingToggle" className="text-xs font-bold text-foreground cursor-pointer select-none">
-                Interesantes
+                Siguiendo
               </label>
               <input
                 id="interestingToggle"

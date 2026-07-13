@@ -3,6 +3,7 @@
 import { prisma } from "./db";
 import { Prisma } from "@prisma/client";
 import { getLudonautaPrices } from "./ludonauta";
+import { revalidatePath } from "next/cache";
 
 export interface GetGamesParams {
   search?: string;
@@ -32,6 +33,7 @@ export interface GetGamesParams {
   showOwned?: boolean;
   showWishlist?: boolean;
   showInteresting?: boolean;
+  interestingOnly?: boolean;
 }
 
 export async function getGames(params: GetGamesParams) {
@@ -66,6 +68,13 @@ export async function getGames(params: GetGamesParams) {
         id: "none"
       });
     }
+  }
+  
+  // Interesting only filter
+  if (params.interestingOnly) {
+    andConditions.push({
+      isInteresting: true,
+    });
   }
 
   // Expansions filter
@@ -1697,6 +1706,24 @@ export async function toggleShopPriceOverride(gameId: string, shopLink: string, 
     return { success: true, game: updated };
   } catch (error) {
     console.error("toggleShopPriceOverride failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
+export async function toggleGameInteresting(bggId: number, isInteresting: boolean) {
+  try {
+    const updated = await prisma.game.update({
+      where: { bggId },
+      data: { isInteresting },
+    });
+    
+    // Revalidate paths to refresh catalog and details
+    revalidatePath("/");
+    revalidatePath(`/game/${updated.id}`);
+    
+    return { success: true, gameId: updated.id, isInteresting: updated.isInteresting };
+  } catch (error) {
+    console.error("toggleGameInteresting failed:", error);
     return { success: false, error: String(error) };
   }
 }

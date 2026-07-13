@@ -222,6 +222,7 @@ interface ShelvesTabParams {
   showOwned?: string;
   showWishlist?: string;
   showInteresting?: string;
+  interestingOnly?: string;
 }
 
 // ==========================================
@@ -291,6 +292,7 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
   const showOwned = resolvedSearchParams.showOwned !== "false";
   const showWishlist = resolvedSearchParams.showWishlist !== "false";
   const showInteresting = resolvedSearchParams.showInteresting !== "false";
+  const interestingOnly = resolvedSearchParams.interestingOnly === "true";
 
   // Fetch games (ownedOnly = true)
   const queryResult = await getGames({
@@ -320,6 +322,7 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
     showOwned,
     showWishlist,
     showInteresting,
+    interestingOnly,
   });
 
   return (

@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
-import { Star, Award, Users, Clock, Flame, Heart } from "lucide-react";
+import { Star, Award, Users, Clock, Flame, Heart, Eye } from "lucide-react";
+import { toggleGameInteresting } from "@/lib/actions";
 
 interface GameCardProps {
   game: {
@@ -32,8 +33,32 @@ interface GameCardProps {
 
 export default function GameCard({ game }: GameCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
-  const [imgSrc, setImgSrc] = useState(game.imageUrl || "/images/placeholder.svg");
+  const [interesting, setInteresting] = useState(game.isInteresting || false);
 
+  useEffect(() => {
+    setInteresting(game.isInteresting || false);
+  }, [game.isInteresting]);
+
+  const handleToggleInteresting = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const nextVal = !interesting;
+    setInteresting(nextVal);
+    
+    try {
+      const res = await toggleGameInteresting(game.bggId, nextVal);
+      if (!res.success) {
+        setInteresting(!nextVal);
+        alert("Error al cambiar estado de seguimiento");
+      }
+    } catch {
+      setInteresting(!nextVal);
+      alert("Error de conexión al cambiar estado");
+    }
+  };
+
+  const [imgSrc, setImgSrc] = useState(game.imageUrl || "/images/placeholder.svg");
   const fav = isFavorite(game.bggId);
 
   // Format player count text
@@ -82,9 +107,9 @@ export default function GameCard({ game }: GameCardProps) {
           </div>
         )}
         {/* Seguido/Tracking Flag Badge */}
-        {game.isInteresting && (
+        {interesting && (
           <div className={`absolute left-3 flex items-center gap-1 rounded-full bg-purple-500/90 text-white px-2 py-0.5 text-[9px] font-black uppercase tracking-wider shadow-sm backdrop-blur-sm border border-purple-600/30 ${game.rank ? "top-10" : "top-3"}`}>
-            <span>👁️ Seguido</span>
+            <span>👁️ Siguiendo</span>
           </div>
         )}
       </Link>
@@ -100,6 +125,23 @@ export default function GameCard({ game }: GameCardProps) {
           className={`transition-colors duration-300 ${
             fav ? "fill-red-500 text-red-500" : "text-muted-foreground hover:text-red-500"
           }`}
+        />
+      </button>
+
+      {/* Interesting (Siguiendo) Toggle Button */}
+      <button
+        onClick={handleToggleInteresting}
+        aria-label="Toggle Following Status"
+        className={`absolute right-3 top-12.5 z-10 flex h-7.5 w-7.5 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${
+          interesting
+            ? "bg-purple-600 border-purple-600 text-white shadow-premium"
+            : "bg-background/90 text-muted-foreground hover:text-purple-600 hover:border-purple-200"
+        }`}
+        title={interesting ? "Siguiendo (Haga clic para dejar de seguir)" : "No seguido (Haga clic para seguir precios)"}
+      >
+        <Eye
+          size={14}
+          className={`transition-colors duration-300 ${interesting ? "fill-white text-white" : ""}`}
         />
       </button>
 

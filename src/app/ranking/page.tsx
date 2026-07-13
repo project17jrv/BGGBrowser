@@ -94,6 +94,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
     : undefined;
 
   const showExpansions = getParam(resolvedSearchParams.expansions) !== "false";
+  const interestingOnly = getParam(resolvedSearchParams.interestingOnly) === "true";
 
   // Execute database query (ownedOnly = false)
   const queryResult = await getGames({
@@ -121,6 +122,7 @@ export default async function RankingPage({ searchParams }: RankingProps) {
     ownedOnly: false,
     showExpansions,
     excludeUnranked: true,
+    interestingOnly,
   });
 
   return (
