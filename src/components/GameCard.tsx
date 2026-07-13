@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
-import { Star, Award, Users, Clock, Flame, Heart, Eye } from "lucide-react";
+import { Star, Award, Users, Clock, Flame, Heart, Bell } from "lucide-react";
 import { toggleGameInteresting } from "@/lib/actions";
 
 interface GameCardProps {
@@ -132,15 +132,15 @@ export default function GameCard({ game }: GameCardProps) {
       <button
         onClick={handleToggleInteresting}
         aria-label="Toggle Following Status"
-        className={`absolute right-3 top-12.5 z-10 flex h-7.5 w-7.5 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${
+        className={`absolute right-12 top-3 z-10 flex h-7.5 w-7.5 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${
           interesting
             ? "bg-purple-600 border-purple-600 text-white shadow-premium"
             : "bg-background/90 text-muted-foreground hover:text-purple-600 hover:border-purple-200"
         }`}
         title={interesting ? "Siguiendo (Haga clic para dejar de seguir)" : "No seguido (Haga clic para seguir precios)"}
       >
-        <Eye
-          size={14}
+        <Bell
+          size={13}
           className={`transition-colors duration-300 ${interesting ? "fill-white text-white" : ""}`}
         />
       </button>
