@@ -1468,6 +1468,31 @@ export async function excludeLudonautaOffer(gameId: string, offerLink: string) {
   }
 }
 
+/** Removes a shop offer link from includedLinks in the game's ludonautaCache (deselects it from the watchlist). */
+export async function removeShopFromWatchlist(gameId: string, offerLink: string) {
+  try {
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { ludonautaCache: true }
+    });
+    if (!game?.ludonautaCache) return { success: false, error: "Caché no encontrado." };
+
+    const cache = JSON.parse(game.ludonautaCache);
+    const includedLinks: string[] = Array.isArray(cache.includedLinks) ? cache.includedLinks : [];
+    const updated = { ...cache, includedLinks: includedLinks.filter((l: string) => l !== offerLink) };
+
+    await prisma.game.update({
+      where: { id: gameId },
+      data: { ludonautaCache: JSON.stringify(updated) }
+    });
+    revalidatePath("/");
+    return { success: true };
+  } catch (error) {
+    console.error("removeShopFromWatchlist failed:", error);
+    return { success: false, error: String(error) };
+  }
+}
+
 export async function registerLotPurchase(updates: { id: string; purchasePrice: number }[]) {
   try {
     const results = [];
