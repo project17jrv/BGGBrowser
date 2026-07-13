@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem } from "@/lib/actions";
 import { PreviewButton } from "./PreviewButton";
-import { getBestBargainForGame } from "@/lib/bargainDetector";
+import { getBestBargainForGame, getAllCandidatesForGame } from "@/lib/bargainDetector";
 
 interface WallapopListing {
   id: string;
@@ -158,6 +158,16 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
   const [sortBy, setSortBy] = useState<"default" | "chollo">("default");
   // Per-game discarded bargain links (webLink strings to skip in the thermometer)
   const [discardedBargainLinks, setDiscardedBargainLinks] = useState<Map<string, string[]>>(new Map());
+  // Per-game toggle for the full candidate list panel
+  const [expandedCandidateIds, setExpandedCandidateIds] = useState<Set<string>>(new Set());
+
+  const toggleCandidates = (gameId: string) => {
+    setExpandedCandidateIds(prev => {
+      const next = new Set(prev);
+      if (next.has(gameId)) { next.delete(gameId); } else { next.add(gameId); }
+      return next;
+    });
+  };
 
   const toggleExpand = (gameId: string) => {
     setExpandedIds((prev) => {
@@ -684,6 +694,132 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                         </div>
                       )}
                     </div>
+
+                    {/* All Wallapop Candidates Panel */}
+                    {(() => {
+                      const allCandidates = getAllCandidatesForGame(game, discardedBargainLinks.get(game.id) || []);
+                      const isCandidatesExpanded = expandedCandidateIds.has(game.id);
+                      const discardedCount = (discardedBargainLinks.get(game.id) || []).length;
+                      if (allCandidates.length === 0) return null;
+                      return (
+                        <div className="border border-dashed rounded-2xl overflow-hidden transition-all duration-300">
+                          {/* Header toggle */}
+                          <button
+                            type="button"
+                            onClick={() => toggleCandidates(game.id)}
+                            className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/10 hover:bg-muted/20 transition-colors cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-2">
+                              <TrendingUp size={12} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-wider group-hover:text-foreground transition-colors">
+                                Anuncios Considerados ({allCandidates.length - discardedCount} activos{discardedCount > 0 ? `, ${discardedCount} descartados` : ""})
+                              </span>
+                            </div>
+                            {isCandidatesExpanded ? <ChevronUp size={12} className="text-muted-foreground" /> : <ChevronDown size={12} className="text-muted-foreground" />}
+                          </button>
+
+                          {/* Candidate list */}
+                          {isCandidatesExpanded && (
+                            <div className="divide-y divide-border/30">
+                              {allCandidates.map((cand, ci) => {
+                                const isDiscarded = (discardedBargainLinks.get(game.id) || []).includes(cand.webLink);
+                                const isBest = !isDiscarded && bargain?.webLink === cand.webLink;
+                                const tempColor = isDiscarded
+                                  ? "text-muted-foreground/50"
+                                  : cand.temperature >= 70 ? "text-orange-500"
+                                  : cand.temperature >= 50 ? "text-amber-500"
+                                  : cand.temperature >= 35 ? "text-emerald-500"
+                                  : "text-muted-foreground";
+                                const tempBg = isDiscarded
+                                  ? "bg-muted/10 border-border/20"
+                                  : cand.temperature >= 70 ? "bg-orange-500/10 border-orange-500/20"
+                                  : cand.temperature >= 50 ? "bg-amber-500/10 border-amber-500/20"
+                                  : cand.temperature >= 35 ? "bg-emerald-500/10 border-emerald-500/20"
+                                  : "bg-muted/10 border-border/20";
+
+                                return (
+                                  <div
+                                    key={ci}
+                                    className={`flex items-center gap-2 px-3 py-2 text-xs transition-all ${isDiscarded ? "opacity-40" : ""} ${isBest ? "bg-primary/5" : "hover:bg-muted/10"}`}
+                                  >
+                                    {/* Best marker */}
+                                    <span className="text-[10px] w-3 shrink-0 text-center">
+                                      {isBest ? "👑" : isDiscarded ? "✗" : ""}
+                                    </span>
+
+                                    {/* Title + location */}
+                                    <div className="flex-1 min-w-0">
+                                      <span className={`block font-semibold truncate ${isDiscarded ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                                        {cand.title}
+                                      </span>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        {cand.location && (
+                                          <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">📍 {cand.location}</span>
+                                        )}
+                                        {cand.isLinked && (
+                                          <span className="text-[9px] text-indigo-500 font-bold">🔗 Seleccionado</span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Price */}
+                                    <span className={`font-black shrink-0 ${isDiscarded ? "text-muted-foreground" : "text-foreground"}`}>
+                                      {cand.price.toFixed(2)}€
+                                    </span>
+
+                                    {/* Temperature badge */}
+                                    {!isDiscarded && (
+                                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full border shrink-0 ${tempBg} ${tempColor}`}>
+                                        {cand.temperature}°
+                                      </span>
+                                    )}
+
+                                    {/* Link + Discard/Restore buttons */}
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <a
+                                        href={cand.webLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="h-6 w-6 flex items-center justify-center rounded-lg bg-secondary text-muted-foreground hover:bg-primary hover:text-white transition-all"
+                                        title="Ver anuncio"
+                                      >
+                                        <ExternalLink size={9} />
+                                      </a>
+                                      {isDiscarded ? (
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setDiscardedBargainLinks(prev => {
+                                              const next = new Map(prev);
+                                              const existing = next.get(game.id) || [];
+                                              next.set(game.id, existing.filter(l => l !== cand.webLink));
+                                              return next;
+                                            });
+                                          }}
+                                          className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-500 border border-transparent hover:border-emerald-500/20 transition-all"
+                                          title="Restaurar este anuncio"
+                                        >
+                                          <ArrowUpRight size={9} />
+                                        </button>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => discardBargainOffer(game.id, cand.webLink)}
+                                          className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 border border-transparent hover:border-red-500/20 transition-all"
+                                          title="Descartar este anuncio del cálculo"
+                                        >
+                                          <X size={9} />
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Selected Items Lists Stack (Wallapop below Shops) */}
                     <div className="flex flex-col gap-4 border-t border-dashed pt-4 flex-grow">

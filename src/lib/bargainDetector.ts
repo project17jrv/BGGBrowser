@@ -322,3 +322,101 @@ export function getBestBargainForGame(game: {
 
   return bestResult;
 }
+
+export interface ScoredCandidate {
+  title: string;
+  price: number;
+  webLink: string;
+  imageUrl?: string;
+  location?: string;
+  isLinked: boolean;
+  temperature: number;
+  label: string;
+}
+
+/**
+ * Returns ALL scored candidates (linked + cache listings) so the UI can display
+ * the full list for manual curation, including discarded ones for reference.
+ */
+export function getAllCandidatesForGame(game: {
+  wallapopCache?: string | null;
+  ludonautaCache?: string | null;
+  linkedWallapop?: MinimalLinkedWallapop[];
+}, discardedLinks: string[] = []): ScoredCandidate[] {
+  // Extract reference store prices (same as getBestBargainForGame)
+  let store_avg: number | null = null;
+  let store_min: number | null = null;
+
+  if (game.ludonautaCache) {
+    try {
+      const cache = JSON.parse(game.ludonautaCache);
+      const offers = cache.offers || [];
+      const included = cache.includedLinks || [];
+      const activeOffers = offers.filter((o: { link: string; price: number | null; stock: string }) =>
+        (included.length === 0 || included.includes(o.link)) &&
+        o.price !== null &&
+        o.stock !== "Agotado"
+      );
+      if (activeOffers.length > 0) {
+        const prices = activeOffers.map((o: { price: number }) => o.price);
+        store_avg = prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
+        store_min = Math.min(...prices);
+      }
+    } catch {}
+  }
+
+  let wallapop_avg: number | null = null;
+  let wallapop_min: number | null = null;
+  let cacheListings: { title: string; price: number; webLink: string; imageUrl?: string; location?: string }[] = [];
+  let priceHistory: { bestPrice: number }[] = [];
+
+  if (game.wallapopCache) {
+    try {
+      const parsed = JSON.parse(game.wallapopCache);
+      cacheListings = parsed.listings || [];
+      priceHistory = parsed.priceHistory || [];
+      wallapop_avg = parsed.averagePrice || null;
+    } catch {}
+  }
+
+  if (wallapop_avg === null && cacheListings.length > 0) {
+    const prices = cacheListings.map(l => l.price);
+    wallapop_avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+  }
+  if (priceHistory.length > 0) {
+    wallapop_min = Math.min(...priceHistory.map(h => h.bestPrice));
+  } else if (cacheListings.length > 0) {
+    wallapop_min = Math.min(...cacheListings.map(l => l.price));
+  }
+
+  // Build combined unique candidate list (linked first, then cache)
+  const raw: { title: string; price: number; webLink: string; imageUrl?: string; location?: string; isLinked: boolean }[] = [];
+  const seen = new Set<string>();
+
+  if (game.linkedWallapop) {
+    game.linkedWallapop.forEach(item => {
+      if (item.price > 0 && item.webLink && !seen.has(item.webLink)) {
+        seen.add(item.webLink);
+        raw.push({ title: item.title, price: item.price, webLink: item.webLink, imageUrl: item.imageUrl || undefined, location: item.location || undefined, isLinked: true });
+      }
+    });
+  }
+
+  cacheListings.forEach(item => {
+    if (item.price > 0 && item.webLink && !seen.has(item.webLink)) {
+      seen.add(item.webLink);
+      raw.push({ title: item.title, price: item.price, webLink: item.webLink, imageUrl: item.imageUrl || undefined, location: item.location || undefined, isLinked: false });
+    }
+  });
+
+  // Score each candidate and sort by price ascending
+  return raw
+    .map(cand => {
+      const discarded = discardedLinks.includes(cand.webLink);
+      const { temperature, label } = discarded
+        ? { temperature: -1, label: "Descartado" }
+        : calculateBargainScore({ store_avg, store_min, wallapop_avg, wallapop_min, offer_price: cand.price });
+      return { ...cand, temperature, label };
+    })
+    .sort((a, b) => b.temperature - a.temperature || a.price - b.price);
+}
