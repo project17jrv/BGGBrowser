@@ -10,7 +10,7 @@
  * For Wallapop items, omit `preview` — the component will fetch OG
  * metadata on the first hover and cache it in component state.
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { MonitorSmartphone } from "lucide-react";
 
@@ -233,6 +233,14 @@ export function PreviewButton({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fetchedRef = useRef(false);
+
+  // Reset local state when URL changes (prevents caching previews across different items when keys are reused)
+  useEffect(() => {
+    setPreview(initialPreview ?? null);
+    fetchedRef.current = false;
+    setLoading(false);
+    setAnchorRect(null);
+  }, [url, initialPreview]);
 
   // If we have pre-fetched data (Ludonauta), use it directly.
   // Otherwise fetch on first hover (Wallapop).

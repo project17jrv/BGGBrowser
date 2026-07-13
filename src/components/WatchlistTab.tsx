@@ -894,7 +894,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
 
                                 return (
                                   <div
-                                    key={ci}
+                                    key={cand.webLink}
                                     className={`flex items-center gap-2 px-3 py-2 text-xs transition-all ${isDiscarded ? "opacity-55" : ""} ${isBest ? "bg-primary/5" : "hover:bg-muted/10"}`}
                                   >
                                     {/* Best marker */}
