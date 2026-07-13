@@ -132,7 +132,7 @@ export default function GameCard({ game }: GameCardProps) {
       <button
         onClick={handleToggleInteresting}
         aria-label="Toggle Following Status"
-        className={`absolute right-[45px] top-3 z-10 flex h-7.5 w-7.5 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${
+        className={`absolute right-[43.5px] top-3 z-10 flex h-7.5 w-7.5 items-center justify-center rounded-full border shadow-sm backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer ${
           interesting
             ? "bg-purple-600 border-purple-600 text-white shadow-premium"
             : "bg-background/90 text-muted-foreground hover:text-purple-600 hover:border-purple-200"
