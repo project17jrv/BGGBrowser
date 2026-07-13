@@ -33,7 +33,7 @@ export interface GetGamesParams {
   showOwned?: boolean;
   showWishlist?: boolean;
   showInteresting?: boolean;
-  interestingOnly?: boolean;
+  interestingOnly?: string;
 }
 
 export async function getGames(params: GetGamesParams) {
@@ -71,9 +71,13 @@ export async function getGames(params: GetGamesParams) {
   }
   
   // Interesting only filter
-  if (params.interestingOnly) {
+  if (params.interestingOnly === "true") {
     andConditions.push({
       isInteresting: true,
+    });
+  } else if (params.interestingOnly === "false") {
+    andConditions.push({
+      isInteresting: false,
     });
   }
 

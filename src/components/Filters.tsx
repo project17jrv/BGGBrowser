@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useFavorites } from "@/hooks/useFavorites";
-import { SlidersHorizontal, RotateCcw, Heart, Calendar, Users, Clock, Award, Star, Eye } from "lucide-react";
+import { SlidersHorizontal, RotateCcw, Heart, Calendar, Users, Clock, Award, Star, Bell } from "lucide-react";
 
 interface FiltersProps {
   categories: string[];
@@ -44,8 +44,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(
     searchParams.get("favorites") === "true"
   );
-  const [showInterestingOnly, setShowInterestingOnly] = useState(
-    searchParams.get("interestingOnly") === "true"
+  const [showInterestingOnly, setShowInterestingOnly] = useState<string>(
+    searchParams.get("interestingOnly") || "all"
   );
   const [showExpansions, setShowExpansions] = useState(
     searchParams.get("expansions") !== "false"
@@ -78,7 +78,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedCategories(searchParams.get("categories")?.split(",").filter(Boolean) || []);
     setSelectedMechanics(searchParams.get("mechanics")?.split(",").filter(Boolean) || []);
     setShowFavoritesOnly(searchParams.get("favorites") === "true");
-    setShowInterestingOnly(searchParams.get("interestingOnly") === "true");
+    setShowInterestingOnly(searchParams.get("interestingOnly") || "all");
     setShowExpansions(searchParams.get("expansions") !== "false");
     setShowOwned(searchParams.get("showOwned") !== "false");
     setShowWishlist(searchParams.get("showWishlist") !== "false");
@@ -143,8 +143,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("favIds");
     }
 
-    if (showInterestingOnly) {
-      params.set("interestingOnly", "true");
+    if (showInterestingOnly === "true" || showInterestingOnly === "false") {
+      params.set("interestingOnly", showInterestingOnly);
     } else {
       params.delete("interestingOnly");
     }
@@ -208,12 +208,12 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
   };
 
   // Toggle Interesting Only
-  const toggleInterestingOnly = (checked: boolean) => {
-    setShowInterestingOnly(checked);
+  const toggleInterestingOnly = (val: string) => {
+    setShowInterestingOnly(val);
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", "1");
-    if (checked) {
-      params.set("interestingOnly", "true");
+    if (val === "true" || val === "false") {
+      params.set("interestingOnly", val);
     } else {
       params.delete("interestingOnly");
     }
@@ -269,8 +269,8 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
       params.delete("favIds");
     }
 
-    if (showInterestingOnly) {
-      params.set("interestingOnly", "true");
+    if (showInterestingOnly === "true" || showInterestingOnly === "false") {
+      params.set("interestingOnly", showInterestingOnly);
     } else {
       params.delete("interestingOnly");
     }
@@ -321,7 +321,7 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
     setSelectedCategories([]);
     setSelectedMechanics([]);
     setShowFavoritesOnly(false);
-    setShowInterestingOnly(false);
+    setShowInterestingOnly("all");
     setShowExpansions(true);
     setShowOwned(true);
     setShowWishlist(true);
@@ -378,22 +378,50 @@ export default function Filters({ categories, mechanics, minYear, maxYear, maxRa
           />
         </div>
 
-        {/* Interesting Only Switcher */}
-        <div className="flex items-center justify-between rounded-xl border bg-muted/30 px-3.5 py-2.5 transition-all duration-200 hover:border-primary/30">
-          <label htmlFor="interestingOnlyToggle" className="flex items-center gap-2 cursor-pointer select-none">
-            <Eye 
+        {/* Interesting Only Segmented Control */}
+        <div className="flex flex-col gap-1.5 rounded-xl border bg-muted/30 px-3.5 py-3 transition-all duration-200 hover:border-primary/30">
+          <div className="flex items-center gap-2 mb-1.5 select-none">
+            <Bell 
               size={15} 
-              className={`transition-colors duration-300 ${showInterestingOnly ? "text-purple-500 fill-purple-500/10" : "text-muted-foreground"}`} 
+              className={`transition-colors duration-300 ${showInterestingOnly !== "all" ? "text-purple-500 fill-purple-500/10" : "text-muted-foreground"}`} 
             />
-            <span className="text-xs font-bold text-foreground">Solo Siguiendo</span>
-          </label>
-          <input
-            id="interestingOnlyToggle"
-            type="checkbox"
-            checked={showInterestingOnly}
-            onChange={(e) => toggleInterestingOnly(e.target.checked)}
-            className="h-4 w-4 cursor-pointer rounded border-gray-300 text-primary focus:ring-primary accent-primary"
-          />
+            <span className="text-xs font-bold text-foreground">Filtro de Seguimiento</span>
+          </div>
+          <div className="flex rounded-lg border bg-muted/50 p-1 gap-1">
+            <button
+              type="button"
+              onClick={() => toggleInterestingOnly("all")}
+              className={`flex-1 rounded-md py-1 text-center text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                showInterestingOnly === "all"
+                  ? "bg-card text-foreground shadow-sm border border-border/40"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleInterestingOnly("true")}
+              className={`flex-1 rounded-md py-1 text-center text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                showInterestingOnly === "true"
+                  ? "bg-purple-600 text-white shadow-sm border border-purple-600"
+                  : "text-muted-foreground hover:text-purple-600"
+              }`}
+            >
+              Siguiendo
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleInterestingOnly("false")}
+              className={`flex-1 rounded-md py-1 text-center text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                showInterestingOnly === "false"
+                  ? "bg-card text-foreground shadow-sm border border-border/40"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              No Siguiendo
+            </button>
+          </div>
         </div>
 
         {/* Show Expansions Switcher */}

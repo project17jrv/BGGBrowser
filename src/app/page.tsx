@@ -292,7 +292,7 @@ async function ShelvesTab({ resolvedSearchParams }: { resolvedSearchParams: Shel
   const showOwned = resolvedSearchParams.showOwned !== "false";
   const showWishlist = resolvedSearchParams.showWishlist !== "false";
   const showInteresting = resolvedSearchParams.showInteresting !== "false";
-  const interestingOnly = resolvedSearchParams.interestingOnly === "true";
+  const interestingOnly = resolvedSearchParams.interestingOnly;
 
   // Fetch games (ownedOnly = true)
   const queryResult = await getGames({
