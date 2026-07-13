@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { 
-  RefreshCw, Store, ExternalLink, Calendar, 
+  RefreshCw, Store, ExternalLink,
   HelpCircle, Clock, Tag, ArrowUpRight, TrendingUp, AlertCircle,
-  ChevronDown, ChevronUp, Flame, Bell
+  ChevronDown, ChevronUp, Flame, Trash2, X
 } from "lucide-react";
-import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride } from "@/lib/actions";
+import { refreshInterestingGamePrices, updateWallapopItemStatus, toggleShopStockOverride, toggleShopPriceOverride, removeShopFromWatchlist, deleteWallapopItem } from "@/lib/actions";
 import { PreviewButton } from "./PreviewButton";
 import { getBestBargainForGame } from "@/lib/bargainDetector";
 
@@ -153,14 +153,16 @@ function PriceSparkline({ history }: { history: PriceHistoryEntry[] }) {
 export default function WatchlistTab({ games }: WatchlistTabProps) {
   const router = useRouter();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [sortBy, setSortBy] = useState<"default" | "chollo">("default");
+  // Per-game discarded bargain links (webLink strings to skip in the thermometer)
+  const [discardedBargainLinks, setDiscardedBargainLinks] = useState<Map<string, string[]>>(new Map());
 
   const toggleExpand = (gameId: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      next.has(gameId) ? next.delete(gameId) : next.add(gameId);
+      if (next.has(gameId)) { next.delete(gameId); } else { next.add(gameId); }
       return next;
     });
   };
@@ -178,10 +180,40 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
         } else {
           alert("Error al cambiar estado: " + res.error);
         }
-      } catch (err) {
+      } catch {
         alert("Error de red al cambiar estado.");
       }
     });
+  };
+
+  const handleRemoveShop = (gameId: string, offerLink: string) => {
+    startTransition(async () => {
+      const res = await removeShopFromWatchlist(gameId, offerLink);
+      if (res.success) router.refresh();
+      else alert("Error al eliminar tienda: " + res.error);
+    });
+  };
+
+  const handleDeleteWallapopItem = (itemId: string) => {
+    if (!confirm("¿Eliminar este anuncio de Wallapop de tu selección?")) return;
+    startTransition(async () => {
+      const res = await deleteWallapopItem(itemId);
+      if (res.success) router.refresh();
+      else alert("Error al eliminar anuncio: " + res.error);
+    });
+  };
+
+  const discardBargainOffer = (gameId: string, webLink: string) => {
+    setDiscardedBargainLinks(prev => {
+      const next = new Map(prev);
+      const existing = next.get(gameId) || [];
+      if (!existing.includes(webLink)) next.set(gameId, [...existing, webLink]);
+      return next;
+    });
+  };
+
+  const resetDiscardedBargains = (gameId: string) => {
+    setDiscardedBargainLinks(prev => { const next = new Map(prev); next.delete(gameId); return next; });
   };
 
   const handleToggleShopStock = (gameId: string, offerLink: string, currentStock: string) => {
@@ -200,7 +232,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
         } else {
           alert("Error al cambiar stock: " + res.error);
         }
-      } catch (err) {
+      } catch {
         alert("Error de red al cambiar stock.");
       }
     });
@@ -223,7 +255,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
         } else {
           alert("Error al cambiar precio: " + res.error);
         }
-      } catch (err) {
+      } catch {
         alert("Error de red al cambiar precio.");
       }
     });
@@ -328,12 +360,12 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                 
                 const sortedActiveWallapopItems = [...activeWallapopItems].sort((a, b) => a.price - b.price);
                 
-                let selectedOffers: any[] = [];
+                let selectedOffers: { link: string; price: number | null; stock: string; storeName: string }[] = [];
                 if (game.ludonautaCache) {
                   try {
-                    const cache = JSON.parse(game.ludonautaCache);
+                    const cache = JSON.parse(game.ludonautaCache) as { offers?: { link: string; price: number | null; stock: string; storeName: string }[]; includedLinks?: string[] };
                     if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
-                      selectedOffers = cache.offers?.filter((o: any) => cache.includedLinks.includes(o.link)) || [];
+                      selectedOffers = cache.offers?.filter((o) => (cache.includedLinks as string[]).includes(o.link)) || [];
                     }
                   } catch {}
                 }
@@ -358,8 +390,8 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                   } catch {}
                 }
 
-                const sortedListings = [...listings].sort((a, b) => a.price - b.price);
-                const bargain = getBestBargainForGame(game);
+                const _sortedListings = [...listings].sort((a, b) => a.price - b.price);
+                const bargain = getBestBargainForGame(game, discardedBargainLinks.get(game.id) || []);
 
                 return {
                   game,
@@ -370,9 +402,8 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                   sortedSelectedOffers,
                   lowestShopPrice,
                   lastUpdated,
-                  listings,
+                  listings: _sortedListings,
                   priceHistory,
-                  sortedListings,
                   bargain
                 };
               });
@@ -406,9 +437,7 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                 sortedSelectedOffers,
                 lowestShopPrice,
                 lastUpdated,
-                listings,
                 priceHistory,
-                sortedListings,
                 bargain
               }) => {
                 const isUpdating = updatingId === game.id;
@@ -606,16 +635,35 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                             <span>{bargain.isLinked ? "🔗 Oferta seleccionada por ti" : "🔍 Encontrada automáticamente"}</span>
                           </div>
                           
-                          {/* Action Button */}
-                          <a
-                            href={bargain.webLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-2 flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-[11px] font-bold uppercase tracking-wider py-2 px-4 rounded-xl shadow-premium hover:shadow-premium-hover transition-all cursor-pointer text-center"
-                          >
-                            Ver Oferta en Wallapop ({bargain.offerPrice}€)
-                            <ArrowUpRight size={12} />
-                          </a>
+                          {/* Action Buttons */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <a
+                              href={bargain.webLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-primary-foreground hover:bg-primary/95 text-[11px] font-bold uppercase tracking-wider py-2 px-4 rounded-xl shadow-premium hover:shadow-premium-hover transition-all cursor-pointer text-center"
+                            >
+                              Ver oferta ({bargain.offerPrice}€)
+                              <ArrowUpRight size={12} />
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => discardBargainOffer(game.id, bargain.webLink)}
+                              className="h-8 w-8 shrink-0 flex items-center justify-center rounded-xl border border-border/50 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all"
+                              title="Descartar esta oferta y analizar la siguiente"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                          {(discardedBargainLinks.get(game.id)?.length ?? 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => resetDiscardedBargains(game.id)}
+                              className="mt-1 text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 cursor-pointer self-center"
+                            >
+                              Restablecer ofertas descartadas ({discardedBargainLinks.get(game.id)!.length})
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="flex flex-col items-center justify-center text-center p-6 bg-muted/15 border border-muted/50 rounded-2xl h-full min-h-[160px] text-muted-foreground">
@@ -624,6 +672,15 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                           <span className="text-[10px] max-w-[200px] mt-1 text-muted-foreground/80 leading-normal">
                             No hay ofertas de Wallapop cargadas para calcular el nivel de chollo.
                           </span>
+                          {(discardedBargainLinks.get(game.id)?.length ?? 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => resetDiscardedBargains(game.id)}
+                              className="mt-3 text-[10px] text-primary hover:underline cursor-pointer"
+                            >
+                              Restablecer {discardedBargainLinks.get(game.id)!.length} oferta(s) descartada(s)
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -693,6 +750,15 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                               >
                                 <ExternalLink size={10} />
                               </a>
+
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveShop(game.id, o.link)}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 border border-transparent hover:border-red-500/20 transition-all"
+                                title="Quitar esta tienda de la selección"
+                              >
+                                <Trash2 size={10} />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -763,6 +829,15 @@ export default function WatchlistTab({ games }: WatchlistTabProps) {
                               >
                                 <ExternalLink size={10} />
                               </a>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteWallapopItem(item.id)}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-red-500/10 hover:text-red-500 border border-transparent hover:border-red-500/20 transition-all"
+                                title="Eliminar este anuncio de la selección"
+                              >
+                                <Trash2 size={10} />
+                              </button>
                             </div>
                           </div>
                         ))}

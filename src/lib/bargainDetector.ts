@@ -176,7 +176,7 @@ export function getBestBargainForGame(game: {
   ludonautaCache?: string | null;
   wallapopCache?: string | null;
   linkedWallapop?: MinimalLinkedWallapop[];
-}): BargainResult | null {
+}, discardedLinks: string[] = []): BargainResult | null {
   // Extract reference store prices
   let store_avg: number | null = null;
   let store_min: number | null = null;
@@ -239,10 +239,10 @@ export function getBestBargainForGame(game: {
     isLinked: boolean;
   }> = [];
 
-  // 1. Add manually linked items that are available
+  // 1. Add manually linked items that are available (and not discarded)
   if (game.linkedWallapop) {
     game.linkedWallapop.forEach((item) => {
-      if (item.status === "available" && item.price > 0 && item.webLink) {
+      if (item.status === "available" && item.price > 0 && item.webLink && !discardedLinks.includes(item.webLink)) {
         candidates.push({
           title: item.title,
           price: item.price,
@@ -255,9 +255,9 @@ export function getBestBargainForGame(game: {
     });
   }
 
-  // 2. Add scraped cache listings (excluding duplicate links)
+  // 2. Add scraped cache listings (excluding duplicate links and discarded)
   cacheListings.forEach((item) => {
-    if (item.price > 0 && item.webLink && !candidates.some(c => c.webLink === item.webLink)) {
+    if (item.price > 0 && item.webLink && !candidates.some(c => c.webLink === item.webLink) && !discardedLinks.includes(item.webLink)) {
       candidates.push({
         title: item.title,
         price: item.price,
