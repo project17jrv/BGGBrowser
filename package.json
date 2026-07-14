@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "sync:bgg": "tsx scripts/sync-bgg.ts",
-    "sync:force": "tsx scripts/force-sync.ts"
+    "sync:force": "tsx scripts/force-sync.ts",
+    "sync:ranking": "tsx scripts/sync-ranking.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
