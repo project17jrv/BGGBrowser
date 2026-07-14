@@ -39,30 +39,10 @@ function ensureDirectoryExists() {
   }
 }
 
-// Helper to download an image from a URL and save it locally
 async function downloadImage(url: string, bggId: number, isThumb = false): Promise<string> {
-  if (!url) return "";
-  ensureDirectoryExists();
-  const filename = `${bggId}${isThumb ? "-thumb" : ""}.jpg`;
-  const filepath = path.join(imagesDir, filename);
-  const relativePath = `/images/games/${filename}`;
-
-  try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      }
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    fs.writeFileSync(filepath, buffer);
-    return relativePath;
-  } catch (error) {
-    console.warn(`[Warning] Could not download image ${url}. Falling back to CDN. Error: ${error instanceof Error ? error.message : error}`);
-    return url; // fallback to BGG CDN URL
-  }
+  // Return the original BGG CDN URL directly to prevent broken images on Vercel/production
+  // and avoid local disk storage.
+  return url || "";
 }
 
 interface BggCollectionItem {
