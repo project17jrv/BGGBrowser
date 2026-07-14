@@ -417,8 +417,6 @@ function getLudonautaPrice(ludonautaCache: string | null): number | null {
   if (!ludonautaCache) return null;
   try {
     const cache = JSON.parse(ludonautaCache) as { offers?: LudonautaOffer[]; includedLinks?: string[] };
-    
-    // 1. If there are manually selected links, calculate average using only those
     if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
       const activeOffers = cache.offers?.filter((o) => 
         cache.includedLinks?.includes(o.link) && 
@@ -430,22 +428,7 @@ function getLudonautaPrice(ludonautaCache: string | null): number | null {
         return sum / activeOffers.length;
       }
     }
-
-    // 2. Fallback: calculate the average of in-stock offers from the last search
-    const inStockOffers = cache.offers?.filter((o) => o.stock === "En stock" && o.price !== null) || [];
-    if (inStockOffers.length > 0) {
-      const sum = inStockOffers.reduce((acc, o) => acc + (o.price as number), 0);
-      return sum / inStockOffers.length;
-    } else if (cache.offers && cache.offers.length > 0) {
-      const allPrices = cache.offers.map((o) => o.price).filter((p): p is number => p !== null);
-      if (allPrices.length > 0) {
-        const sum = allPrices.reduce((acc, p) => acc + p, 0);
-        return sum / allPrices.length;
-      }
-    }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return null;
 }
 

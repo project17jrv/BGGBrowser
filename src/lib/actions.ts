@@ -477,20 +477,17 @@ export async function getFinancialSummary() {
         const sum = activeWallapop.reduce((acc, item) => acc + item.price, 0);
         gameVal = sum / activeWallapop.length;
       } else if (game.ludonautaCache) {
-        // 2. Ludonauta average price of in-stock offers
         try {
-          const cache = JSON.parse(game.ludonautaCache) as { offers?: { price: number | null; stock: string }[] };
-          const inStockOffers = cache.offers?.filter((o) => o.stock === "En stock" && o.price !== null) || [];
-          if (inStockOffers.length > 0) {
-            const prices = inStockOffers.map((o) => o.price as number);
-            const sum = prices.reduce((acc, p) => acc + p, 0);
-            gameVal = sum / prices.length;
-          } else if (cache.offers && cache.offers.length > 0) {
-            // Fallback to average of any offer
-            const allPrices = cache.offers.map((o) => o.price).filter((p): p is number => p !== null);
-            if (allPrices.length > 0) {
-              const sum = allPrices.reduce((acc, p) => acc + p, 0);
-              gameVal = sum / allPrices.length;
+          const cache = JSON.parse(game.ludonautaCache) as { offers?: { price: number | null; stock: string; link: string }[]; includedLinks?: string[] };
+          if (Array.isArray(cache.includedLinks) && cache.includedLinks.length > 0) {
+            const activeOffers = cache.offers?.filter((o) => 
+              cache.includedLinks?.includes(o.link) && 
+              o.price !== null && 
+              o.stock !== "Agotado"
+            ) || [];
+            if (activeOffers.length > 0) {
+              const sum = activeOffers.reduce((acc, o) => acc + (o.price as number), 0);
+              gameVal = sum / activeOffers.length;
             }
           }
         } catch {
